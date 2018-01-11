@@ -6,6 +6,7 @@
 #include <fc/crypto/elliptic.hpp>
 #include <fc/crypto/openssl.hpp>
 #include <fc/exception/exception.hpp>
+#include "openssl_compability.h"
 
 // See https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki#Test_Vectors
 
@@ -42,7 +43,7 @@ static fc::string BLIND_T_X = "80deff382af8a8e4a5f297588e44d5bf858f30a524f74b13e
 static fc::string BLINDED_HASH = "7196e80cdafdfdfb7496323ad24bf47dda8447febd7426e444facc04940c7309";
 static fc::string BLIND_SIG = "40d6a477d849cc860df8ad159481f2ffc5b4dc3131b86a799d7d10460824dd53";
 static fc::string UNBLINDED = "700092a72a05e33509f9b068aa1d7c5336d8b5692b4157da199d7ec1e10fd7c0";
-/*
+
 
 BOOST_AUTO_TEST_CASE(test_extended_keys_1)
 {
@@ -276,13 +277,20 @@ BOOST_AUTO_TEST_CASE(openssl_blinding)
     BN_mod_add(blind_sig, blind_sig, q, n, ctx);
 
     fc::ecdsa_sig sig(ECDSA_SIG_new());
-    BN_copy(sig->r, Kx);
-    BN_mod_mul(sig->s, c, blind_sig, n, ctx);
-    BN_mod_add(sig->s, sig->s, d, n, ctx);
+    const BIGNUM *cr, *cs;
+    ECDSA_SIG_get0(sig,&cr, &cs);
+    BIGNUM *r=BN_new();
+    BIGNUM *s=BN_new();
+    BN_copy(r, cr);
+    BN_copy(s, cs);
+    BN_copy(r, Kx);
+    BN_mod_mul(s, c, blind_sig, n, ctx);
+    BN_mod_add(s, s, d, n, ctx);
 
-    if (BN_cmp(sig->s, n_half) > 0) {
-        BN_sub(sig->s, n, sig->s);
+    if (BN_cmp(s, n_half) > 0) {
+        BN_sub(s, n, s);
     }
+    ECDSA_SIG_set0(sig,r,s) ;
 
     fc::ec_key verify(EC_KEY_new());
     EC_KEY_set_public_key(verify, T);
@@ -303,4 +311,3 @@ BOOST_AUTO_TEST_CASE(openssl_blinding)
 //        printf("\nunblinded: "); print(sig->s);
 //        printf("\n");
 }
-*/
