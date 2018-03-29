@@ -74,6 +74,14 @@ variant::variant( uint64_t val, uint32_t max_depth )
    set_variant_type( this, uint64_type );
 }
 
+#ifdef __APPLE__
+variant::variant( size_t val, uint32_t max_depth )
+{
+   *reinterpret_cast<uint64_t*>(this)  = val;
+   set_variant_type( this, uint64_type );
+}
+#endif
+
 variant::variant( int64_t val, uint32_t max_depth )
 {
    *reinterpret_cast<int64_t*>(this)  = val;

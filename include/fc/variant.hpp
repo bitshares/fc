@@ -211,6 +211,9 @@ namespace fc
         variant( uint32_t val, uint32_t max_depth = 1 );
         variant( int32_t val, uint32_t max_depth = 1 );
         variant( uint64_t val, uint32_t max_depth = 1 );
+#ifdef __APPLE__
+        variant( size_t val, uint32_t max_depth = 1 );
+#endif
         variant( int64_t val, uint32_t max_depth = 1 );
         variant( double val, uint32_t max_depth = 1 );
         variant( bool val, uint32_t max_depth = 1 );
