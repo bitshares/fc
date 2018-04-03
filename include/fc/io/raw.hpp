@@ -548,7 +548,7 @@ namespace fc {
        FC_ASSERT( _max_depth > 0 );
        --_max_depth;
        unsigned_int size; fc::raw::unpack( s, size, _max_depth );
-       FC_ASSERT( size.value*sizeof(T) < MAX_ARRAY_ALLOC_SIZE );
+       //FC_ASSERT( size.value*sizeof(T) < MAX_ARRAY_ALLOC_SIZE );
        value.resize(size.value);
        auto itr = value.begin();
        auto end = value.end();

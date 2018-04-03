@@ -3,6 +3,7 @@
 #include <boost/container/flat_set.hpp>
 #include <boost/interprocess/containers/vector.hpp>
 #include <fc/config.hpp>
+#include <stdint.h>
 
 namespace fc {
 

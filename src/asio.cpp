@@ -106,11 +106,10 @@ namespace fc {
                {
                  fc::thread::current().set_name("asio");
                  
-                 BOOST_SCOPE_EXIT(void)
+                 //BOOST_SCOPE_EXIT(void)
                  {
-                   fc::thread::cleanup();
                  } 
-                 BOOST_SCOPE_EXIT_END
+                 //BOOST_SCOPE_EXIT_END
 
                  while (!io->stopped())
                  {
@@ -131,6 +130,7 @@ namespace fc {
                      elog("Caught unhandled exception in asio service loop");
                    }
                  }
+                 fc::thread::cleanup();
                }) );
             }
        }
