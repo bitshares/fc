@@ -282,6 +282,7 @@ set( fc_sources
      src/network/url.cpp
      src/compress/smaz.cpp
      src/compress/zlib.cpp
+     src/stacktrace.cpp
      )
 
 file( GLOB_RECURSE fc_headers ${CMAKE_CURRENT_SOURCE_DIR} *.hpp *.h )
