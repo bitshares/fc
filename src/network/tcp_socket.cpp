@@ -183,7 +183,7 @@ namespace fc {
 #elif !defined(__clang__) || (__clang_major__ >= 6)
       // This should work for modern Linuxes and for OSX >= Mountain Lion
       int timeout_sec = interval.count() / fc::seconds(1).count();
-      if (setsockopt(my->_sock.native(), IPPROTO_TCP, 
+      if (setsockopt(my->_sock.native_handle(), IPPROTO_TCP,
       #if defined( __APPLE__ )
                      TCP_KEEPALIVE,
        #else
@@ -192,7 +192,7 @@ namespace fc {
                      (char*)&timeout_sec, sizeof(timeout_sec)) < 0)
         wlog("Error setting TCP keepalive idle time");
 # if !defined(__APPLE__) || defined(TCP_KEEPINTVL) // TCP_KEEPINTVL not defined before 10.9
-      if (setsockopt(my->_sock.native(), IPPROTO_TCP, TCP_KEEPINTVL, 
+      if (setsockopt(my->_sock.native_handle(), IPPROTO_TCP, TCP_KEEPINTVL,
                      (char*)&timeout_sec, sizeof(timeout_sec)) < 0)
         wlog("Error setting TCP keepalive interval");
 # endif // !__APPLE__ || TCP_KEEPINTVL
@@ -224,7 +224,7 @@ namespace fc {
     if (detail::have_so_reuseport)
     {
       int reuseport_value = 1;
-      if (setsockopt(my->_sock.native(), SOL_SOCKET, SO_REUSEPORT, 
+      if (setsockopt(my->_sock.native_handle(), SOL_SOCKET, SO_REUSEPORT,
                      (char*)&reuseport_value, sizeof(reuseport_value)) < 0)
       {
         if (errno == ENOPROTOOPT)
@@ -291,7 +291,7 @@ namespace fc {
     if (detail::have_so_reuseport)
     {
       int reuseport_value = 1;
-      if (setsockopt(my->_accept.native(), SOL_SOCKET, SO_REUSEPORT, 
+      if (setsockopt(my->_accept.native_handle(), SOL_SOCKET, SO_REUSEPORT,
                      (char*)&reuseport_value, sizeof(reuseport_value)) < 0)
       {
         if (errno == ENOPROTOOPT)
