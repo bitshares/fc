@@ -65,7 +65,8 @@ namespace asio {
             bool operator()( C&, bool ) { return false; } 
         };
         #endif 
-    }
+    } // end of namespace detail
+
     /**
      * @return the default boost::asio::io_service for use with fc::asio
      * 

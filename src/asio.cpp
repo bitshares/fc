@@ -4,6 +4,8 @@
 #include <fc/log/logger.hpp>
 #include <fc/exception/exception.hpp>
 #include <boost/scope_exit.hpp>
+#include <algorithm>
+#include <thread>
 
 namespace fc {
   namespace asio {
@@ -93,6 +95,8 @@ namespace fc {
 
     struct default_io_service_scope
     {
+       static int8_t default_num_threads = 0;
+
        boost::asio::io_service*          io;
        std::vector<boost::thread*>       asio_threads;
        boost::asio::io_service::work*    the_work;
@@ -101,7 +105,17 @@ namespace fc {
        {
             io           = new boost::asio::io_service();
             the_work     = new boost::asio::io_service::work(*io);
-            for( int i = 0; i < 8; ++i ) {
+
+            if (default_num_threads == 0)
+            {
+               // the default was not set by the configuration. Determine a good
+               // number of threads. Minimum of 2, maximum of hardware_concurrency - 1
+               default_num_threads = std::max( std::thread::hardware_concurrency(), 2u );
+               if(default_num_threads > 2)
+                  --default_num_threads;
+            }
+
+            for( unsigned i = 0; i < default_num_threads; ++i ) {
                asio_threads.push_back( new boost::thread( [=]()
                {
                  fc::thread::current().set_name("asio");
@@ -157,6 +171,7 @@ namespace fc {
         static default_io_service_scope fc_asio_service[1];
         return *fc_asio_service[0].io;
     }
+
 
     namespace tcp {
       std::vector<boost::asio::ip::tcp::endpoint> resolve( const std::string& hostname, const std::string& port)
