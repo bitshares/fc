@@ -99,9 +99,12 @@ namespace fc {
      * @brief set the default number of threads for the io service
      *
      * @param num_threads the number of threads
+     * @returns the old value. If the old value is not 0, you've probably called this method too late.
      */
-    void default_io_service_scope::set_default_num_threads(int16_t num_threads) {
+    int16_t default_io_service_scope::set_default_num_threads(int16_t num_threads) {
+       int16_t old_value = default_num_io_threads;
        default_num_io_threads = num_threads;
+       return old_value;
     }
 
     int16_t default_io_service_scope::get_default_num_threads() {
