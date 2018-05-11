@@ -93,75 +93,90 @@ namespace fc {
         }
     }
 
-    struct default_io_service_scope
+    static int16_t default_num_io_threads = 0;
+
+    /***
+     * @brief set the default number of threads for the io service
+     *
+     * @param num_threads the number of threads
+     */
+    void default_io_service_scope::set_default_num_threads(int16_t num_threads) {
+       default_num_io_threads = num_threads;
+    }
+
+    int16_t default_io_service_scope::get_default_num_threads() {
+       return default_num_io_threads;
+    }
+
+    /***
+     * Default constructor
+     */
+    default_io_service_scope::default_io_service_scope()
     {
-       static int8_t default_num_threads = 0;
+       io           = new boost::asio::io_service();
+       the_work     = new boost::asio::io_service::work(*io);
 
-       boost::asio::io_service*          io;
-       std::vector<boost::thread*>       asio_threads;
-       boost::asio::io_service::work*    the_work;
-
-       default_io_service_scope()
+       if (default_num_io_threads == 0)
        {
-            io           = new boost::asio::io_service();
-            the_work     = new boost::asio::io_service::work(*io);
+          // the default was not set by the configuration. Determine a good
+          // number of threads. Minimum of 2, maximum of hardware_concurrency - 1
+          default_num_io_threads = std::max( std::thread::hardware_concurrency(), 2u );
+          if( default_num_io_threads > 2 )
+             --default_num_io_threads;
+       }
 
-            if (default_num_threads == 0)
-            {
-               // the default was not set by the configuration. Determine a good
-               // number of threads. Minimum of 2, maximum of hardware_concurrency - 1
-               default_num_threads = std::max( std::thread::hardware_concurrency(), 2u );
-               if(default_num_threads > 2)
-                  --default_num_threads;
-            }
-
-            for( unsigned i = 0; i < default_num_threads; ++i ) {
-               asio_threads.push_back( new boost::thread( [=]()
-               {
+       for( int16_t i = 0; i < default_num_io_threads; ++i )
+       {
+          asio_threads.push_back( new boost::thread( [=]()
+                {
                  fc::thread::current().set_name("asio");
                  
                  BOOST_SCOPE_EXIT(void)
                  {
-                   fc::thread::cleanup();
+                    fc::thread::cleanup();
                  } 
                  BOOST_SCOPE_EXIT_END
 
                  while (!io->stopped())
                  {
-                   try
-                   {
-                     io->run();
-                   }
-                   catch (const fc::exception& e)
-                   {
-                     elog("Caught unhandled exception in asio service loop: ${e}", ("e", e));
-                   }
-                   catch (const std::exception& e)
-                   {
-                     elog("Caught unhandled exception in asio service loop: ${e}", ("e", e.what()));
-                   }
-                   catch (...)
-                   {
-                     elog("Caught unhandled exception in asio service loop");
-                   }
+                    try
+                    {
+                       io->run();
+                    }
+                    catch (const fc::exception& e)
+                    {
+                       elog("Caught unhandled exception in asio service loop: ${e}", ("e", e));
+                    }
+                    catch (const std::exception& e)
+                    {
+                       elog("Caught unhandled exception in asio service loop: ${e}", ("e", e.what()));
+                    }
+                    catch (...)
+                    {
+                       elog("Caught unhandled exception in asio service loop");
+                    }
                  }
-               }) );
-            }
-       }
+                }) );
+       } // build thread loop
+    } // end of constructor
 
-       ~default_io_service_scope()
+    /***
+     * destructor
+     */
+    default_io_service_scope::~default_io_service_scope()
+    {
+       delete the_work;
+       io->stop();
+       for( auto asio_thread : asio_threads )
        {
-          delete the_work;
-          io->stop();
-          for( auto asio_thread : asio_threads ) {
-             asio_thread->join();
-          }
-          delete io;
-          for( auto asio_thread : asio_threads ) {
-             delete asio_thread;
-          }
+          asio_thread->join();
        }
-    };
+       delete io;
+       for( auto asio_thread : asio_threads )
+       {
+          delete asio_thread;
+       }
+    } // end of destructor
 
     /***
      * @brief create an io_service
@@ -171,7 +186,6 @@ namespace fc {
         static default_io_service_scope fc_asio_service[1];
         return *fc_asio_service[0].io;
     }
-
 
     namespace tcp {
       std::vector<boost::asio::ip::tcp::endpoint> resolve( const std::string& hostname, const std::string& port)

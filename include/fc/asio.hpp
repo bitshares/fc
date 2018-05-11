@@ -5,6 +5,8 @@
 #pragma once
 #include <boost/asio.hpp>
 #include <boost/bind.hpp>
+#include <boost/thread.hpp>
+#include <vector>
 #include <fc/thread/future.hpp>
 #include <fc/io/iostream.hpp>
 
@@ -66,6 +68,24 @@ namespace asio {
         };
         #endif 
     } // end of namespace detail
+
+    /***
+     * A structure for holding the boost io service and associated
+     * threads
+     */
+    class default_io_service_scope
+    {
+       public:
+          default_io_service_scope();
+          ~default_io_service_scope();
+          static void set_default_num_threads(int16_t num_threads);
+          boost::asio::io_service*          io;
+       private:
+          std::vector<boost::thread*>       asio_threads;
+          boost::asio::io_service::work*    the_work;
+       protected:
+          int16_t get_default_num_threads(); // helps with testing
+    };
 
     /**
      * @return the default boost::asio::io_service for use with fc::asio
