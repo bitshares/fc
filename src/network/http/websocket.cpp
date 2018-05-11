@@ -34,14 +34,6 @@ namespace fc { namespace http {
           typedef base::con_msg_manager_type con_msg_manager_type;
           typedef base::endpoint_msg_manager_type endpoint_msg_manager_type;
 
-          /// Custom Logging policies
-          /*typedef websocketpp::log::syslog<concurrency_type,
-              websocketpp::log::elevel> elog_type;
-          typedef websocketpp::log::syslog<concurrency_type,
-              websocketpp::log::alevel> alog_type;
-          */
-          //typedef base::alog_type alog_type;
-          //typedef base::elog_type elog_type;
           typedef websocketpp::log::stub elog_type;
           typedef websocketpp::log::stub alog_type;
 
@@ -76,14 +68,6 @@ namespace fc { namespace http {
           typedef base::con_msg_manager_type con_msg_manager_type;
           typedef base::endpoint_msg_manager_type endpoint_msg_manager_type;
 
-          /// Custom Logging policies
-          /*typedef websocketpp::log::syslog<concurrency_type,
-              websocketpp::log::elevel> elog_type;
-          typedef websocketpp::log::syslog<concurrency_type,
-              websocketpp::log::alevel> alog_type;
-          */
-          //typedef base::alog_type alog_type;
-          //typedef base::elog_type elog_type;
           typedef websocketpp::log::stub elog_type;
           typedef websocketpp::log::stub alog_type;
 
@@ -116,8 +100,6 @@ namespace fc { namespace http {
          typedef base::con_msg_manager_type con_msg_manager_type;
          typedef base::endpoint_msg_manager_type endpoint_msg_manager_type;
 
-         //typedef base::alog_type alog_type;
-         //typedef base::elog_type elog_type;
          typedef websocketpp::log::stub elog_type;
          typedef websocketpp::log::stub alog_type;
 
@@ -158,8 +140,7 @@ namespace fc { namespace http {
 
             virtual void send_message( const std::string& message )override
             {
-               idump((message));
-               //std::cerr<<"send: "<<message<<"\n";
+               idump( (message) );
                auto ec = _ws_connection->send( message );
                FC_ASSERT( !ec, "websocket send failed: ${msg}", ("msg",ec.message() ) );
             }
@@ -198,9 +179,8 @@ namespace fc { namespace http {
                     _server_thread.async( [&](){
                        auto current_con = _connections.find(hdl);
                        assert( current_con != _connections.end() );
-                       wdump(("server")(msg->get_payload()));
-                       //std::cerr<<"recv: "<<msg->get_payload()<<"\n";
                        auto payload = msg->get_payload();
+                       wdump( ("server") (payload) (_server.get_con_from_hdl(hdl)->get_host()) );
                        std::shared_ptr<websocket_connection> con = current_con->second;
                        ++_pending_messages;
                        auto f = fc::async([this,con,payload](){ if( _pending_messages ) --_pending_messages; con->on_message( payload ); });
@@ -222,7 +202,7 @@ namespace fc { namespace http {
                        auto con = _server.get_con_from_hdl(hdl);
                        con->defer_http_response();
                        std::string request_body = con->get_request_body();
-                       wdump(("server")(request_body));
+                       wdump( ("server") (request_body) (con->get_host()) );
 
                        fc::async([current_con, request_body, con] {
                           std::string response = current_con->on_http(request_body);
@@ -335,6 +315,7 @@ namespace fc { namespace http {
                        assert( current_con != _connections.end() );
                        auto received = msg->get_payload();
                        std::shared_ptr<websocket_connection> con = current_con->second;
+                       wdump( ("server") (received) (_server.get_con_from_hdl(hdl)->get_host()) )
                        fc::async([con,received](){ con->on_message( received ); });
                     }).wait();
                });
@@ -347,14 +328,14 @@ namespace fc { namespace http {
                           _on_connection( current_con );
 
                           auto con = _server.get_con_from_hdl(hdl);
-                          wdump(("server")(con->get_request_body()));
+                          wdump( ("server") (con->get_request_body()) (con->get_host()) );
                           auto response = current_con->on_http( con->get_request_body() );
                           idump((response));
                           con->set_body( response );
                           con->set_status( websocketpp::http::status_code::ok );
                        } catch ( const fc::exception& e )
                        {
-                         edump((e.to_detail_string()));
+                         edump( (e.to_detail_string()) (_server.get_con_from_hdl(hdl)->get_host()) );
                        }
                        current_con->closed();
 
@@ -428,7 +409,7 @@ namespace fc { namespace http {
                 _client.clear_access_channels( websocketpp::log::alevel::all );
                 _client.set_message_handler( [&]( connection_hdl hdl, message_ptr msg ){
                    _client_thread.async( [&](){
-                        wdump((msg->get_payload()));
+                        wdump( (msg->get_payload()) (_client.get_con_from_hdl(hdl)->get_host()) );
                         //std::cerr<<"recv: "<<msg->get_payload()<<"\n";
                         auto received = msg->get_payload();
                         fc::async( [=](){
@@ -488,7 +469,7 @@ namespace fc { namespace http {
                 _client.clear_access_channels( websocketpp::log::alevel::all );
                 _client.set_message_handler( [&]( connection_hdl hdl, message_ptr msg ){
                    _client_thread.async( [&](){
-                        wdump((msg->get_payload()));
+                        wdump( (msg->get_payload()) (_client.get_con_from_hdl(hdl)->get_host()) );
                       _connection->on_message( msg->get_payload() );
                    }).wait();
                 });
@@ -671,7 +652,7 @@ namespace fc { namespace http {
 
        auto con = my->_client.get_connection( uri, ec );
 
-       if( ec ) FC_ASSERT( !ec, "error: ${e}", ("e",ec.message()) );
+       if( ec ) FC_ASSERT( !ec, "error: ${e} uri: ${uri}", ("e",ec.message()) ("uri", uri) );
 
        my->_client.connect(con);
        my->_connected->wait();
@@ -698,7 +679,7 @@ namespace fc { namespace http {
 
        auto con = smy->_client.get_connection( uri, ec );
        if( ec )
-          FC_ASSERT( !ec, "error: ${e}", ("e",ec.message()) );
+          FC_ASSERT( !ec, "error: ${e} uri: ${uri}", ("e",ec.message()) ("uri", uri) );
        smy->_client.connect(con);
        smy->_connected->wait();
        return smy->_connection;
@@ -721,7 +702,7 @@ namespace fc { namespace http {
        auto con = my->_client.get_connection( uri, ec );
        if( ec )
        {
-          FC_ASSERT( !ec, "error: ${e}", ("e",ec.message()) );
+          FC_ASSERT( !ec, "error: ${e} uri: ${uri}", ("e",ec.message()) ("uri", uri) );
        }
        my->_client.connect(con);
        my->_connected->wait();
