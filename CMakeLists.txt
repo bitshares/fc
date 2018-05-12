@@ -534,4 +534,10 @@ ADD_CUSTOM_COMMAND(TARGET fc POST_BUILD ${POST_BUILD_STEP_COMMANDS}
   COMMENT "Copying OpenSSL/ssl/openssl.cnf into target directory."
 )
 
+include(ProcessorCount)
+ProcessorCount(N)
+if(NOT N EQUAL 0)
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNUM_OF_ASIO_THREADS=${N}")
+endif()
+
 MESSAGE(STATUS "Finished fc module configuration...")

@@ -96,12 +96,21 @@ namespace fc {
        boost::asio::io_service*          io;
        std::vector<boost::thread*>       asio_threads;
        boost::asio::io_service::work*    the_work;
+       int16_t                           num_threads;
 
        default_io_service_scope()
        {
             io           = new boost::asio::io_service();
             the_work     = new boost::asio::io_service::work(*io);
-            for( int i = 0; i < 8; ++i ) {
+
+        #if defined(NUM_OF_ASIO_THREADS)
+            num_threads = NUM_OF_ASIO_THREADS;
+        #else
+            num_threads = boost::thread::hardware_concurrency();
+            if (!num_threads)
+                num_threads = 8;  // compitable with previous
+        #endif
+            for( int i = 0; i < num_threads; ++i ) {
                asio_threads.push_back( new boost::thread( [=]()
                {
                  fc::thread::current().set_name("asio");
