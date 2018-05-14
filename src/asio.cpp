@@ -122,10 +122,8 @@ namespace fc {
        if (default_num_io_threads == 0)
        {
           // the default was not set by the configuration. Determine a good
-          // number of threads. Minimum of 2, maximum of hardware_concurrency - 1
-          default_num_io_threads = std::max( boost::thread::hardware_concurrency(), 2u );
-          if( default_num_io_threads > 2 )
-             --default_num_io_threads;
+          // number of threads. Minimum of 8, maximum of hardware_concurrency
+          default_num_io_threads = std::max( boost::thread::hardware_concurrency(), 8u );
        }
 
        for( int16_t i = 0; i < default_num_io_threads; ++i )
