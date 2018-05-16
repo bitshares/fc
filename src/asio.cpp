@@ -123,7 +123,7 @@ namespace fc {
           this->num_io_threads = std::max( boost::thread::hardware_concurrency(), 8u );
        }
 
-       for( int16_t i = 0; i < this->num_io_threads; ++i )
+       for( uint16_t i = 0; i < this->num_io_threads; ++i )
        {
           asio_threads.push_back( new boost::thread( [=]()
                 {
