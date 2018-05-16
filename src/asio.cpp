@@ -93,22 +93,19 @@ namespace fc {
         }
     }
 
-    static int16_t default_num_io_threads = 0;
+    uint16_t fc::asio::default_io_service_scope::num_io_threads = 0;
 
     /***
      * @brief set the default number of threads for the io service
      *
+     * Sets the number of threads for the io service. This will throw
+     * an exception if called more than once.
+     *
      * @param num_threads the number of threads
-     * @returns the old value. If the old value is not 0, you've probably called this method too late.
      */
-    int16_t default_io_service_scope::set_default_num_threads(int16_t num_threads) {
-       int16_t old_value = default_num_io_threads;
-       default_num_io_threads = num_threads;
-       return old_value;
-    }
-
-    int16_t default_io_service_scope::get_default_num_threads() {
-       return default_num_io_threads;
+    void default_io_service_scope::set_num_threads(uint16_t num_threads) {
+       FC_ASSERT(fc::asio::default_io_service_scope::num_io_threads == 0);
+       fc::asio::default_io_service_scope::num_io_threads = num_threads;
     }
 
     /***
@@ -119,14 +116,14 @@ namespace fc {
        io           = new boost::asio::io_service();
        the_work     = new boost::asio::io_service::work(*io);
 
-       if (default_num_io_threads == 0)
+       if (this->num_io_threads == 0)
        {
           // the default was not set by the configuration. Determine a good
           // number of threads. Minimum of 8, maximum of hardware_concurrency
-          default_num_io_threads = std::max( boost::thread::hardware_concurrency(), 8u );
+          this->num_io_threads = std::max( boost::thread::hardware_concurrency(), 8u );
        }
 
-       for( int16_t i = 0; i < default_num_io_threads; ++i )
+       for( int16_t i = 0; i < this->num_io_threads; ++i )
        {
           asio_threads.push_back( new boost::thread( [=]()
                 {

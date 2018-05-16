@@ -18,10 +18,11 @@ BOOST_AUTO_TEST_CASE(tcpconstructor_test)
 class my_io_class : public fc::asio::default_io_service_scope
 {
 public:
-   int16_t get_num_threads()
+   uint16_t get_num_threads()
    {
-      return get_default_num_threads();
+      return fc::asio::default_io_service_scope::num_io_threads;
    }
+   static void reset_num_threads() { fc::asio::default_io_service_scope::num_io_threads = 0; }
 };
 
 /***
@@ -29,7 +30,10 @@ public:
  */
 BOOST_AUTO_TEST_CASE( number_threads_test )
 {
-   fc::asio::default_io_service_scope::set_default_num_threads(12);
+   // to erase leftovers from previous tests
+   my_io_class::reset_num_threads();
+
+   fc::asio::default_io_service_scope::set_num_threads(12);
 
    my_io_class my_class;
 
@@ -42,7 +46,7 @@ BOOST_AUTO_TEST_CASE( number_threads_test )
 BOOST_AUTO_TEST_CASE( default_number_threads_test )
 {
    // to erase leftovers from previous tests
-   fc::asio::default_io_service_scope::set_default_num_threads(0);
+   my_io_class::reset_num_threads();
 
    my_io_class my_class;
 
