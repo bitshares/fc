@@ -84,7 +84,7 @@ namespace asio {
           std::vector<boost::thread*>       asio_threads;
           boost::asio::io_service::work*    the_work;
        protected:
-          static uint16_t num_io_threads; // marked private to help with testing
+          static uint16_t num_io_threads; // marked protected to help with testing
     };
 
     /**
