@@ -226,6 +226,7 @@ namespace fc { namespace http {
 
                        fc::async([current_con, request_body, con] {
                           std::string response = current_con->on_http(request_body);
+                          idump((response));
                           con->set_body( response );
                           con->set_status( websocketpp::http::status_code::ok );
                           con->send_http_response();
