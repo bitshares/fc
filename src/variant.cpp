@@ -18,8 +18,7 @@ namespace fc
  */
 void set_variant_type( variant* v, variant::type_id t)
 {
-   char* data = reinterpret_cast<char*>(v);
-   data[ sizeof(variant) -1 ] = t;
+   v->_type[sizeof(void*)-1] = t;
 }
 
 variant::variant()
@@ -298,7 +297,7 @@ void  variant::visit( const visitor& v )const
 
 variant::type_id variant::get_type()const
 {
-   return (type_id)reinterpret_cast<const char*>(this)[sizeof(*this)-1];
+   return (type_id)_type[sizeof(void*)-1];
 }
 
 bool variant::is_null()const

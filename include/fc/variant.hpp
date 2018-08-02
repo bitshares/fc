@@ -350,6 +350,7 @@ namespace fc
 
 
         void    clear();
+        friend void set_variant_type( variant* v, variant::type_id t);
       private:
         void    init();
         double  _data;                ///< Aligned according to double requirements
