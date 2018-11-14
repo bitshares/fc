@@ -137,7 +137,11 @@ namespace fc { namespace http {
   server::server( uint16_t port ) :my( new impl(fc::ip::endpoint( fc::ip::address(),port)) ){}
   server::server( server&& s ):my(fc::move(s.my)){}
 
-  server& server::operator=(server&& s)      { fc_swap(my,s.my); return *this; }
+  server& server::operator=(server&& s) {
+     if( this != &s )
+        fc_swap(my,s.my);
+     return *this;
+  }
 
   server::~server(){}
 

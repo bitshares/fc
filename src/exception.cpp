@@ -246,13 +246,15 @@ namespace fc
    }
    exception& exception::operator=( const exception& copy )
    {
-      *my = *copy.my;
+      if( this != &copy )
+         *my = *copy.my;
       return *this;
    }
 
    exception& exception::operator=( exception&& copy )
    {
-      my = std::move(copy.my);
+      if( this != &copy )
+         my = std::move(copy.my);
       return *this;
    }
 

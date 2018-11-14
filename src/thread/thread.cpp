@@ -104,7 +104,8 @@ namespace fc {
    }
 
    thread& thread::operator=(thread&& t ) {
-      fc_swap(t.my,my);
+      if( this != &t )
+         fc_swap(t.my,my);
       return *this;
    }
 

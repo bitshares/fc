@@ -84,13 +84,15 @@ namespace fc { namespace ecc {
 
     public_key& public_key::operator=( const public_key& pk )
     {
-        my = pk.my;
+        if( this != &pk )
+           my = pk.my;
         return *this;
     }
 
     public_key& public_key::operator=( public_key&& pk )
     {
-        my = pk.my;
+        if( this != &pk )
+           my = pk.my;
         return *this;
     }
 

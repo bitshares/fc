@@ -22,7 +22,8 @@ namespace fc { namespace ecc {
 
         private_key_impl& private_key_impl::operator=( const private_key_impl& pk ) BOOST_NOEXCEPT
         {
-            _key = pk._key;
+            if( this != &pk )
+               _key = pk._key;
             return *this;
         }
     }
@@ -39,13 +40,15 @@ namespace fc { namespace ecc {
 
     private_key& private_key::operator=( private_key&& pk )
     {
-        my = std::move( pk.my );
+        if( this != &pk )
+           my = std::move( pk.my );
         return *this;
     }
 
     private_key& private_key::operator=( const private_key& pk )
     {
-        my = pk.my;
+        if( this != &pk )
+           my = pk.my;
         return *this;
     }
 

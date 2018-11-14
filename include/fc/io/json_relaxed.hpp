@@ -345,7 +345,7 @@ namespace fc { namespace json_relaxed
        catch( const parse_error_exception &e )
        {
            if( strict )
-               throw( e );
+               throw;
            else
                return fc::variant( token );
        }

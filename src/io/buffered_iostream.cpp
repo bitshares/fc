@@ -40,7 +40,8 @@ namespace fc
 
     buffered_istream& buffered_istream::operator=( buffered_istream&& i )
     {
-       my = fc::move(i.my);
+       if( this != &i )
+          my = fc::move(i.my);
        return *this;
     }
 
@@ -160,7 +161,8 @@ namespace fc
 
     buffered_ostream& buffered_ostream::operator=( buffered_ostream&& i )
     {
-       my = fc::move(i.my);
+       if( this != &i )
+          my = fc::move(i.my);
        return *this;
     }
 

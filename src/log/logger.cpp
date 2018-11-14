@@ -47,11 +47,13 @@ namespace fc {
     logger::~logger(){}
 
     logger& logger::operator=( const logger& l ){
-       my = l.my;
+       if( this != &l )
+          my = l.my;
        return *this;
     }
     logger& logger::operator=( logger&& l ){
-       fc_swap(my,l.my);
+       if( this != &l )
+          fc_swap(my,l.my);
        return *this;
     }
     bool operator==( const logger& l, std::nullptr_t ) { return !l.my; }

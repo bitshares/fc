@@ -65,12 +65,14 @@ namespace fc {
    :_p(std::move(p)){}
 
    path& path::operator =( const path& p ) {
-    *_p = *p._p;
-    return *this;
+      if( this != &p )
+         *_p = *p._p;
+      return *this;
    }
    path& path::operator =( path&& p ) {
-    *_p = fc::move( *p._p );
-    return *this;
+      if( this != &p )
+         *_p = fc::move( *p._p );
+      return *this;
    }
 
    bool operator <( const fc::path& l, const fc::path& r ) { return *l._p < *r._p; }

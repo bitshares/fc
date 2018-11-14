@@ -59,11 +59,7 @@ public:
     }
 
     operator BN_CTX*() { return pctx; }
-    BN_CTX& operator*() { return *pctx; }
-    BN_CTX** operator&() { return &pctx; }
-    bool operator!() { return (pctx == NULL); }
 };
-
 
 /** C++ wrapper for BIGNUM (OpenSSL bignum) */
 class CBigNum
@@ -85,7 +81,7 @@ public:
 
     CBigNum& operator=(const CBigNum& b)
     {
-        if (!BN_copy(bn, b.bn))
+        if( this != &b && !BN_copy( bn, b.bn ) )
             throw bignum_error("CBigNum::operator= : BN_copy failed");
         return (*this);
     }

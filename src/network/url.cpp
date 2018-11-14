@@ -140,7 +140,8 @@ namespace fc
 
   url& url::operator=(const url& u )
   {
-     my = u.my;
+     if( this != &u )
+        my = u.my;
      return *this;
   }
 
