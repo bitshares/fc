@@ -99,11 +99,13 @@ BOOST_AUTO_TEST_CASE(fstream_test)
    fc::ofstream out( outf.path() );
 
    std::shared_ptr<char> buf( new char[15], [](char* p){ delete[] p; } );
-   BOOST_CHECK_EQUAL( 3u, in1.readsome( buf, 3, 0 ) );
-   BOOST_CHECK_EQUAL( 3u, out.writesome( buf, 3, 0 ) );
-   BOOST_CHECK_EQUAL( 3u, in1.readsome( buf, 4, 0 ) );
-   BOOST_CHECK_EQUAL( '\0', (&(*buf))[2] );
-   BOOST_CHECK_EQUAL( 2u, out.writesome( buf, 2, 0 ) );
+   size_t have_got = in1.readsome( buf, 3, 0 );
+   BOOST_REQUIRE_LE( 1u, have_got );
+   BOOST_REQUIRE_GT( 4u, have_got );
+   BOOST_CHECK_EQUAL( have_got, out.writesome( buf, have_got, 0 ) );
+   BOOST_REQUIRE_EQUAL( 6 - have_got, in1.readsome( buf, 7 - have_got, 0 ) );
+   BOOST_CHECK_EQUAL( '\0', (&(*buf))[5 - have_got] );
+   BOOST_CHECK_EQUAL( 5 - have_got, out.writesome( buf, 5 - have_got, 0 ) );
    *buf = ' ';
    out.writesome( buf, 1, 0 );
    BOOST_CHECK_THROW( in1.readsome( buf, 3, 0 ), fc::eof_exception );
@@ -114,6 +116,7 @@ BOOST_AUTO_TEST_CASE(fstream_test)
    {
       out.flush();
       std::fstream test( outf.path().to_native_ansi_path(), std::fstream::in );
+      test.peek();
       BOOST_CHECK_EQUAL( 11u, test.readsome( (&(*buf)), 11 ) );
       BOOST_CHECK_EQUAL( "Hello world", std::string( (&(*buf)), 11 ) );
       BOOST_CHECK_EQUAL( 0u, test.readsome( (&(*buf)), 11 ) );
