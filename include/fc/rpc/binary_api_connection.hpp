@@ -13,6 +13,7 @@
 
 namespace fc {
    class binary_api_connection;
+   using std::vector;
 
    namespace detail {
       template<typename Signature>
