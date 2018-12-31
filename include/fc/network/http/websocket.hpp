@@ -30,6 +30,7 @@ namespace fc { namespace http {
          fc::any& get_session_data() { return _session_data; }
 
          virtual std::string get_request_header(const std::string& key) = 0;
+         virtual std::string get_host() = 0;
 
          fc::signal<void()> closed;
       private:
