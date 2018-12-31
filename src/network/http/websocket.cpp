@@ -154,6 +154,14 @@ namespace fc { namespace http {
               return _ws_connection->get_request_header(key);
             }
 
+            virtual std::string get_host()override
+            {
+               auto header = get_request_header("BS-Forwarded");
+               if (header.length() > 2)
+                  return header;
+               return _ws_connection->get_host();
+            }
+
             T _ws_connection;
       };
 
@@ -180,10 +188,10 @@ namespace fc { namespace http {
                        auto current_con = _connections.find(hdl);
                        assert( current_con != _connections.end() );
                        auto payload = msg->get_payload();
-                       wdump( ("server") (_server.get_con_from_hdl(hdl)->get_host()) (payload) );
-                       std::shared_ptr<websocket_connection> con = current_con->second;
+                       std::shared_ptr<websocket_connection> ws_con = current_con->second;
+                       wdump( ("server") (ws_con->get_host() ) (payload) );
                        ++_pending_messages;
-                       auto f = fc::async([this,con,payload](){ if( _pending_messages ) --_pending_messages; con->on_message( payload ); });
+                       auto f = fc::async([this,ws_con,payload](){ if( _pending_messages ) --_pending_messages; ws_con->on_message( payload ); });
                        if( _pending_messages > 100 ) 
                          f.wait();
                     }).wait();
@@ -202,11 +210,11 @@ namespace fc { namespace http {
                        auto con = _server.get_con_from_hdl(hdl);
                        con->defer_http_response();
                        std::string request_body = con->get_request_body();
-                       wdump( ("server") (con->get_host()) (request_body) );
+                       wdump( ("server") (current_con->get_host()) (request_body) );
 
                        fc::async([current_con, request_body, con] {
                           std::string response = current_con->on_http(request_body);
-                          idump((response));
+                          idump( ("server") (current_con->get_host()) (response) );
                           con->set_body( response );
                           con->set_status( websocketpp::http::status_code::ok );
                           con->send_http_response();
@@ -314,9 +322,9 @@ namespace fc { namespace http {
                        auto current_con = _connections.find(hdl);
                        assert( current_con != _connections.end() );
                        auto received = msg->get_payload();
-                       std::shared_ptr<websocket_connection> con = current_con->second;
-                       wdump( ("server") (_server.get_con_from_hdl(hdl)->get_host()) (received) )
-                       fc::async([con,received](){ con->on_message( received ); });
+                       std::shared_ptr<websocket_connection> ws_con = current_con->second;
+                       wdump( ("server") (ws_con->get_host()) (received) )
+                       fc::async([ws_con,received](){ ws_con->on_message( received ); });
                     }).wait();
                });
 
@@ -330,12 +338,12 @@ namespace fc { namespace http {
                           auto con = _server.get_con_from_hdl(hdl);
                           wdump( ("server") (con->get_host()) (con->get_request_body()) );
                           auto response = current_con->on_http( con->get_request_body() );
-                          idump((response));
+                          idump( ("server") (current_con->get_host()) (response) );
                           con->set_body( response );
                           con->set_status( websocketpp::http::status_code::ok );
                        } catch ( const fc::exception& e )
                        {
-                         edump( (_server.get_con_from_hdl(hdl)->get_host()) (e.to_detail_string()) );
+                         edump( (current_con->get_host()) (e.to_detail_string()) );
                        }
                        current_con->closed();
 
@@ -409,7 +417,7 @@ namespace fc { namespace http {
                 _client.clear_access_channels( websocketpp::log::alevel::all );
                 _client.set_message_handler( [&]( connection_hdl hdl, message_ptr msg ){
                    _client_thread.async( [&](){
-                        wdump( (_client.get_con_from_hdl(hdl)->get_host()) (msg->get_payload()) );
+                        wdump( (_connection->get_host()) (msg->get_payload()) );
                         //std::cerr<<"recv: "<<msg->get_payload()<<"\n";
                         auto received = msg->get_payload();
                         fc::async( [=](){
@@ -469,7 +477,7 @@ namespace fc { namespace http {
                 _client.clear_access_channels( websocketpp::log::alevel::all );
                 _client.set_message_handler( [&]( connection_hdl hdl, message_ptr msg ){
                    _client_thread.async( [&](){
-                        wdump( (_client.get_con_from_hdl(hdl)->get_host()) (msg->get_payload()) );
+                        wdump( (_connection->get_host()) (msg->get_payload()) );
                       _connection->on_message( msg->get_payload() );
                    }).wait();
                 });
