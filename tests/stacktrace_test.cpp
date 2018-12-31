@@ -18,7 +18,7 @@ BOOST_AUTO_TEST_CASE(stacktrace_test)
    std::stringstream ss;
    fc::print_stacktrace(ss);
    std::string results = ss.str();
-#if BOOST_VERSION / 100000 >= 1 && ((BOOST_VERSION / 100) % 1000) >= 65
+#if BOOST_VERSION / 100 >= 1065 && !defined(__APPLE__)
    BOOST_CHECK(!results.empty());
    BOOST_CHECK(results.find("fc::print_stacktrace") != std::string::npos);
 #else
@@ -38,7 +38,7 @@ BOOST_AUTO_TEST_CASE(threaded_stacktrace_test)
                return ss.str();
             }
          ).wait();
-#if BOOST_VERSION / 100000 >= 1 && ((BOOST_VERSION / 100) % 1000) >= 65
+#if BOOST_VERSION / 100 >= 1065 && !defined(__APPLE__)
    BOOST_CHECK(!results.empty());
    BOOST_CHECK(results.find("fc::print_stacktrace") != std::string::npos);
 #else
@@ -46,7 +46,7 @@ BOOST_AUTO_TEST_CASE(threaded_stacktrace_test)
 #endif
 }
 
-#if BOOST_VERSION / 100000 >= 1 && ((BOOST_VERSION / 100) % 1000) >= 65
+#if BOOST_VERSION / 100 >= 1065 && !defined(__APPLE__)
 class _svdt_visitor
 {
 public:
