@@ -1,3 +1,6 @@
+#include <map>
+#include <string>
+
 #include <fc/network/http/websocket.hpp>
 #include <websocketpp/config/asio_client.hpp>
 #include <websocketpp/config/asio.hpp>
@@ -183,12 +186,29 @@ namespace fc { namespace http {
                _ws_connection->close(code,reason);
             }
 
-            virtual std::string get_request_header(const std::string& key)override
+            virtual std::string get_request_header( const std::string& key )override
             {
               return _ws_connection->get_request_header(key);
             }
 
+            virtual std::string find_user_value( const std::string& key )override
+            {
+                auto it = _user_values.find(key);
+                if(it == _user_values.end())
+                {
+                    return "";
+                }
+
+                return (*it).second;
+            }
+
+            virtual void insert_user_value( const std::string& key, const std::string& value )override
+            {
+               _user_values[key] = value;
+            }
+
             T _ws_connection;
+            std::map<std::string, std::string>  _user_values;
       };
 
       typedef websocketpp::lib::shared_ptr<boost::asio::ssl::context> context_ptr;

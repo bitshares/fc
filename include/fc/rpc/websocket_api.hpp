@@ -7,6 +7,9 @@
 
 namespace fc { namespace rpc {
 
+   const static std::string ws_compress_header = "WebSocket-Encoding";
+   const static std::string ws_compress_value = "deflate";
+
    class websocket_api_connection : public api_connection
    {
       public:

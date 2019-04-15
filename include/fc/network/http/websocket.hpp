@@ -31,6 +31,9 @@ namespace fc { namespace http {
 
          virtual std::string get_request_header(const std::string& key) = 0;
 
+         virtual std::string find_user_value( const std::string& key ) = 0;
+         virtual void insert_user_value( const std::string& key, const std::string& value ) = 0;
+
          fc::signal<void()> closed;
       private:
          fc::any                                   _session_data;
@@ -38,6 +41,7 @@ namespace fc { namespace http {
          std::function<string(const std::string&)> _on_http;
    };
    typedef std::shared_ptr<websocket_connection> websocket_connection_ptr;
+   typedef std::weak_ptr<websocket_connection> websocket_connection_weak_ptr;
 
    typedef std::function<void(const websocket_connection_ptr&)> on_connection_handler;
 

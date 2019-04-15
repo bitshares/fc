@@ -1,5 +1,6 @@
 
 #include <fc/rpc/websocket_api.hpp>
+#include <fc/compress/zlib.hpp>
 
 namespace fc { namespace rpc {
 
@@ -78,8 +79,14 @@ void websocket_api_connection::send_notice(
    variants args /* = variants() */ )
 {
    fc::rpc::request req{ optional<uint64_t>(), "notice", {callback_id, std::move(args)}};
-   _connection.send_message( fc::json::to_string(fc::variant(req, _max_conversion_depth),
-                                                 fc::json::stringify_large_ints_and_doubles, _max_conversion_depth ) );
+   auto reply = fc::json::to_string(fc::variant(req, _max_conversion_depth),
+                                                 fc::json::stringify_large_ints_and_doubles, _max_conversion_depth );
+
+   if (_connection.find_user_value(ws_compress_header) == ws_compress_value)
+   {
+      reply = fc::zlib_compress(reply);
+   }
+   _connection.send_message(reply);
 }
 
 std::string websocket_api_connection::on_message(
@@ -94,6 +101,7 @@ std::string websocket_api_connection::on_message(
       if( var_obj.contains( "method" ) )
       {
          auto call = var.as<fc::rpc::request>(_max_conversion_depth);
+         auto will_compress_reply = (_connection.find_user_value(ws_compress_header) == ws_compress_value);
          exception_ptr optexcept;
          try
          {
@@ -118,7 +126,13 @@ std::string websocket_api_connection::on_message(
                {
                   auto reply = fc::json::to_string( response( *call.id, result, "2.0" ), fc::json::stringify_large_ints_and_doubles, _max_conversion_depth );
                   if( send_message )
+                  {
+                     if (will_compress_reply)
+                     {
+                        reply = fc::zlib_compress(reply);
+                     }
                      _connection.send_message( reply );
+                  }
                   return reply;
                }
             }
@@ -136,7 +150,13 @@ std::string websocket_api_connection::on_message(
                auto reply = fc::json::to_string( variant(response( *call.id, error_object{ 1, optexcept->to_string(), fc::variant(*optexcept, _max_conversion_depth)}, "2.0" ), _max_conversion_depth ),
                                                  fc::json::stringify_large_ints_and_doubles, _max_conversion_depth );
                if( send_message )
+               {
+                  if (will_compress_reply)
+                  {
+                     reply = fc::zlib_compress(reply);
+                  }
                   _connection.send_message( reply );
+               }
 
                return reply;
          }
