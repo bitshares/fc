@@ -1,6 +1,6 @@
 #pragma once
 #include <fc/shared_ptr.hpp>
-#include <fc/string.hpp>
+#include <string>
 
 namespace fc {
    class appender;
@@ -30,13 +30,13 @@ namespace fc {
          typedef fc::shared_ptr<appender> ptr;
 
          template<typename T>
-         static bool register_appender(const fc::string& type) {
+         static bool register_appender(const std::string& type) {
             return register_appender( type, new detail::appender_factory_impl<T>() );
          }
 
-         static appender::ptr create( const fc::string& name, const fc::string& type, const variant& args  );
-         static appender::ptr get( const fc::string& name );
-         static bool          register_appender( const fc::string& type, const appender_factory::ptr& f );
+         static appender::ptr create( const std::string& name, const std::string& type, const variant& args  );
+         static appender::ptr get( const std::string& name );
+         static bool          register_appender( const std::string& type, const appender_factory::ptr& f );
 
          virtual void log( const log_message& m ) = 0;
    };

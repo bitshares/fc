@@ -1,7 +1,7 @@
 #pragma once
 #include <stdint.h>
-#include <fc/string.hpp>
-#include <fc/vector.hpp>
+#include <string>
+#include <vector>
 
 struct bignum_st;
 typedef bignum_st BIGNUM;
@@ -55,7 +55,7 @@ namespace fc {
       bigint operator--(int);
       bigint& operator--();
 
-      operator fc::string()const;
+      operator std::string()const;
 
       // returns bignum as bigendian bytes
       operator std::vector<char>()const;

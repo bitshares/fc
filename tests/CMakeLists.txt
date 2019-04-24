@@ -1,7 +1,4 @@
 
-add_executable( bip_lock bip_lock.cpp )
-target_link_libraries( bip_lock fc )
-
 add_executable( api api.cpp )
 target_link_libraries( api fc )
 
@@ -42,7 +39,6 @@ add_executable( all_tests all_tests.cpp
                           crypto/base_n_tests.cpp
                           crypto/bigint_test.cpp
                           crypto/blind.cpp
-                          crypto/blowfish_test.cpp
                           crypto/dh_test.cpp
                           crypto/rand_test.cpp
                           crypto/sha_tests.cpp

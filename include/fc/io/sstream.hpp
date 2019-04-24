@@ -7,12 +7,12 @@ namespace fc {
   class stringstream : virtual public iostream {
     public:
       stringstream();
-      stringstream( fc::string& s);
-      stringstream( const fc::string& s);
+      stringstream( std::string& s);
+      stringstream( const std::string& s);
       ~stringstream();
 
-      fc::string str();
-      void str(const fc::string& s);
+      std::string str();
+      void str(const std::string& s);
 
       void clear();
 

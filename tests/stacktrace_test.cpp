@@ -73,7 +73,7 @@ BOOST_AUTO_TEST_CASE(static_variant_depth_test)
    int count = 0;
    for( const auto& line : lines )
       if( line.find("_svdt_visitor") != std::string::npos ) count++;
-   BOOST_CHECK_LT( 3, count ); // test.visit(), static_variant::visit, function object, visitor
+   BOOST_CHECK_LT( 2, count ); // test.visit(), static_variant::visit, function object, visitor
    BOOST_CHECK_GT( 8, count ); // some is implementation-dependent
 }
 #endif

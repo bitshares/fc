@@ -102,4 +102,24 @@ BOOST_AUTO_TEST_CASE( nested_objects_test )
 
 } FC_CAPTURE_LOG_AND_RETHROW ( (0) ) }
 
+BOOST_AUTO_TEST_CASE( unpack_recursion_test )
+{
+   try
+   {
+      std::stringstream ss;
+      int recursion_level = 100000;
+      uint64_t allocation_per_level = 500000;
+
+      for ( int i = 0; i < recursion_level; i++ )
+      {
+         fc::raw::pack( ss, fc::unsigned_int( allocation_per_level ) );
+         fc::raw::pack( ss, static_cast< uint8_t >( fc::variant::array_type ) );
+      }
+
+      std::vector< fc::variant > v;
+      BOOST_REQUIRE_THROW( fc::raw::unpack( ss, v ), fc::assert_exception );
+   }
+   FC_LOG_AND_RETHROW();
+}
+
 BOOST_AUTO_TEST_SUITE_END()

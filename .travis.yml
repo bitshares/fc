@@ -1,16 +1,16 @@
 language: c++
 
+cache: ccache
+
 git:
   depth: 1
 
-dist: trusty
+dist: xenial
 
 sudo: true
 
 install:
- - echo "deb http://de.archive.ubuntu.com/ubuntu xenial main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list
- - sudo apt-get update
- - sudo apt-get install --allow-unauthenticated g++ libboost-all-dev cmake libreadline-dev libssl-dev autoconf parallel
+ - sudo apt-get install --allow-unauthenticated libboost-thread-dev libboost-iostreams-dev libboost-date-time-dev libboost-system-dev libboost-filesystem-dev libboost-program-options-dev libboost-chrono-dev libboost-test-dev libboost-context-dev libboost-regex-dev libboost-coroutine-dev cmake parallel
 
 addons:
   sonarcloud:
@@ -18,15 +18,22 @@ addons:
     token:
       secure: "Y0DhI1Fn7QXqdYF5kCUFV0l0XUOp5iYp+kHYVAWpt1HSYN5889GTO3SgsZoT7+Cmo1HLAe2P8tSCzz3lECDI0rWMuk7wxFRMVmnxBpbR5P61+Mhe4t/LhSGzuT3PAscttFNPexpDmePKO0EgTY7PemMtXR8LZ2O/RngAMWWfH0Wmyngy68Bm9CvpWfW9aQ8ZUMsjpbDmbaE9dN6FLABE1YZzVL+9SA07gOSQzry/SLbRY19+g9OicaAoCdQCdvIem6af1qIy0x5uDFfz4x1Sows9awBOsAOf6V5WmFlV21YwR1RhT+4WffB+VrMYOF8YpzoUrS+CPmPWlkDDN3fuKsqRGYpbBIxyqBQ+rahDtXfoD5ZbGY1UYTbrHGD8VTNVbvdqAsVEfgZ8ci7NxBnIL3VDduxP1qb46chTJb9KeeIETtN8qTdfsZyudveZLKmULKah8uaOkMX2bJT6oikluVXJnI0OybHQrrMwHula/qmEj3FnC3KKPmL84F/6DSPiiojx+qsMa0STQE9ZwzeJPc8KjllsTYKL492IDQJDXkWGS+PwlOXResr2Dhu/rfYKy6qpHQJzreoPcIRmeM7rFamJZHkqdaldJGm+iQacX2byKJ/tT93IM6hW0BEi4Haucwn1f0Ig5tzE8mzro1/Rj35a9ti2jmO0NWjyeBwnCVo="
 
+env:
+  global:
+    - CCACHE_COMPRESS=exists_means_true
+    - CCACHE_MAXSIZE=1Gi
+    - CCACHE_SLOPPINESS=include_file_ctime,include_file_mtime,time_macros
+
 script:
+ - ccache -s
  - cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_FLAGS=--coverage -DCMAKE_CXX_FLAGS=--coverage -DBoost_USE_STATIC_LIBS=OFF  -DCMAKE_CXX_OUTPUT_EXTENSION_REPLACE=ON .
  - 'which build-wrapper-linux-x86-64 && build-wrapper-linux-x86-64 --out-dir bw-output make -j 2 || make -j 2'
  - set -o pipefail
  - tests/run-parallel-tests.sh tests/all_tests
  - "tests/api 2>&1 | grep -vE 'callback result 9|remote_calc->add. 4, 5 .: 9|set callback|] \\.$'"
- - tests/bip_lock 2>&1 | cat
  - tests/hmac_test 2>&1 | cat
  - tests/ecc_test README.md 2>&1 | cat
  - tests/log_test 2>&1 | cat
  - 'find CMakeFiles/fc.dir -type d | while read d; do gcov -o "$d" "${d/CMakeFiles*.dir/./}"/*.cpp; done >/dev/null'
  - 'which sonar-scanner && sonar-scanner || true'
+ - ccache -s

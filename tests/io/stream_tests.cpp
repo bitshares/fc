@@ -12,8 +12,8 @@ BOOST_AUTO_TEST_SUITE(stream_tests)
 
 BOOST_AUTO_TEST_CASE(stringstream_test)
 {
-   const fc::string constant( "Hello", 6 ); // includes trailing \0
-   fc::string writable( "World" );
+   const std::string constant( "Hello", 6 ); // includes trailing \0
+   std::string writable( "World" );
    fc::stringstream in1( constant );
    fc::stringstream in2( writable );
    fc::stringstream out;
@@ -44,8 +44,8 @@ BOOST_AUTO_TEST_CASE(stringstream_test)
 
 BOOST_AUTO_TEST_CASE(buffered_stringstream_test)
 {
-   const fc::string constant( "Hello", 6 ); // includes trailing \0
-   fc::string writable( "World" );
+   const std::string constant( "Hello", 6 ); // includes trailing \0
+   std::string writable( "World" );
    fc::istream_ptr in1( new fc::stringstream( constant ) );
    std::shared_ptr<fc::stringstream> in2( new fc::stringstream( writable ) );
    std::shared_ptr<fc::stringstream> out1( new fc::stringstream() );

@@ -2,7 +2,7 @@
 #include <fc/variant.hpp>
 #include <fc/optional.hpp>
 #include <fc/api.hpp>
-#include <fc/any.hpp>
+#include <boost/any.hpp>
 #include <memory>
 #include <vector>
 #include <functional>
@@ -146,21 +146,27 @@ namespace fc {
             return f();
          }
 
-         template<typename R, typename Signature, typename ... Args>
-         R call_generic( const std::function<R(std::function<Signature>,Args...)>& f, variants::const_iterator a0, variants::const_iterator e, uint32_t max_depth )
+         template<typename R, typename Signature, typename ... Args, 
+               typename std::enable_if<std::is_function<Signature>::value,Signature>::type* = nullptr>
+         R call_generic( const std::function<R(std::function<Signature>,Args...)>& f, 
+               variants::const_iterator a0, variants::const_iterator e, uint32_t max_depth )
          {
             FC_ASSERT( a0 != e, "too few arguments passed to method" );
             FC_ASSERT( max_depth > 0, "Recursion depth exceeded!" );
             detail::callback_functor<Signature> arg0( get_connection(), a0->as<uint64_t>(1) );
-            return call_generic<R,Args...>( this->bind_first_arg<R,std::function<Signature>,Args...>( f, std::function<Signature>(arg0) ), a0+1, e, max_depth - 1 );
+            return call_generic<R,Args...>( this->bind_first_arg<R,std::function<Signature>,Args...>( f, 
+                  std::function<Signature>(arg0) ), a0+1, e, max_depth - 1 );
          }
-         template<typename R, typename Signature, typename ... Args>
-         R call_generic( const std::function<R(const std::function<Signature>&,Args...)>& f, variants::const_iterator a0, variants::const_iterator e, uint32_t max_depth )
+         template<typename R, typename Signature, typename ... Args, 
+               typename std::enable_if<std::is_function<Signature>::value,Signature>::type* = nullptr>
+         R call_generic( const std::function<R(const std::function<Signature>&,Args...)>& f, 
+               variants::const_iterator a0, variants::const_iterator e, uint32_t max_depth )
          {
             FC_ASSERT( a0 != e, "too few arguments passed to method" );
             FC_ASSERT( max_depth > 0, "Recursion depth exceeded!" );
             detail::callback_functor<Signature> arg0( get_connection(), a0->as<uint64_t>(1) );
-            return call_generic<R,Args...>( this->bind_first_arg<R,const std::function<Signature>&,Args...>( f, arg0 ), a0+1, e, max_depth - 1 );
+            return call_generic<R,Args...>( this->bind_first_arg<R,const std::function<Signature>&,Args...>( f, 
+                  arg0 ), a0+1, e, max_depth - 1 );
          }
 
          template<typename R, typename Arg0, typename ... Args>
@@ -202,7 +208,7 @@ namespace fc {
 
 
          std::weak_ptr<fc::api_connection>                       _api_connection;
-         fc::any                                                 _api;
+         boost::any                                              _api;
          std::map< std::string, uint32_t >                       _by_name;
          std::vector< std::function<variant(const variants&)> >  _methods;
    }; // class generic_api

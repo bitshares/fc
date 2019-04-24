@@ -22,17 +22,17 @@ namespace fc {
      static std::unordered_map<std::string,appender_factory::ptr> lm;
      return lm;
    }
-   appender::ptr appender::get( const fc::string& s ) {
+   appender::ptr appender::get( const std::string& s ) {
      static fc::spin_lock appender_spinlock;
       scoped_lock<spin_lock> lock(appender_spinlock);
       return get_appender_map()[s];
    }
-   bool  appender::register_appender( const fc::string& type, const appender_factory::ptr& f )
+   bool  appender::register_appender( const std::string& type, const appender_factory::ptr& f )
    {
       get_appender_factory_map()[type] = f;
       return true;
    }
-   appender::ptr appender::create( const fc::string& name, const fc::string& type, const variant& args  )
+   appender::ptr appender::create( const std::string& name, const std::string& type, const variant& args  )
    {
       auto fact_itr = get_appender_factory_map().find(type);
       if( fact_itr == get_appender_factory_map().end() ) {

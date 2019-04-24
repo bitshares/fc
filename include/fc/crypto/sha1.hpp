@@ -1,8 +1,8 @@
 #pragma once
 #include <fc/fwd.hpp>
-#include <fc/string.hpp>
 
 #include <functional>
+#include <string>
 
 namespace fc{
 
@@ -10,16 +10,16 @@ class sha1
 {
   public:
     sha1();
-    explicit sha1( const string& hex_str );
+    explicit sha1( const std::string& hex_str );
 
-    string str()const;
-    operator string()const;
+    std::string str()const;
+    operator    std::string()const;
 
     char*    data()const;
     size_t data_size()const { return 20; }
 
     static sha1 hash( const char* d, uint32_t dlen );
-    static sha1 hash( const string& );
+    static sha1 hash( const std::string& );
 
     template<typename T>
     static sha1 hash( const T& t ) 

@@ -282,7 +282,7 @@ namespace asio {
     {
        public:
           istream( std::shared_ptr<AsyncReadStream> str )
-          :_stream( fc::move(str) ){}
+          :_stream( std::move(str) ){}
 
           virtual size_t readsome( char* buf, size_t len )
           {
@@ -302,7 +302,7 @@ namespace asio {
     {
        public:
           ostream( std::shared_ptr<AsyncWriteStream> str )
-          :_stream( fc::move(str) ){}
+          :_stream( std::move(str) ){}
 
           virtual size_t writesome( const char* buf, size_t len )
           {

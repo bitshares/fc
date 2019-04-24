@@ -1,7 +1,7 @@
 #pragma once
-#include <fc/vector.hpp>
-#include <fc/string.hpp>
 #include <memory>
+#include <string>
+#include <vector>
 
 namespace fc { 
   namespace ip { class endpoint; }
@@ -11,11 +11,11 @@ namespace fc {
 
      struct header 
      {
-       header( fc::string k, fc::string v )
-       :key(fc::move(k)),val(fc::move(v)){}
+       header( std::string k, std::string v )
+       :key(std::move(k)),val(std::move(v)){}
        header(){}
-       fc::string key;
-       fc::string val;
+       std::string key;
+       std::string val;
      };
 
      typedef std::vector<header> headers;
@@ -39,16 +39,16 @@ namespace fc {
      
      struct request 
      {
-        fc::string get_header( const fc::string& key )const;
-        fc::string              remote_endpoint;
-        fc::string              method;
-        fc::string              domain;
-        fc::string              path;
+        std::string get_header( const std::string& key )const;
+        std::string              remote_endpoint;
+        std::string              method;
+        std::string              domain;
+        std::string              path;
         std::vector<header>     headers;
         std::vector<char>       body;
      };
      
-     std::vector<header> parse_urlencoded_params( const fc::string& f );
+     std::vector<header> parse_urlencoded_params( const std::string& f );
      
      /**
       *  Connections have reference semantics, all copies refer to the same
@@ -61,7 +61,7 @@ namespace fc {
          ~connection();
          // used for clients
          void         connect_to( const fc::ip::endpoint& ep );
-         http::reply  request( const fc::string& method, const fc::string& url, const fc::string& body = std::string(), const headers& = headers());
+         http::reply  request( const std::string& method, const std::string& url, const std::string& body = std::string(), const headers& = headers());
      
          // used for servers
          fc::tcp_socket& get_socket()const;

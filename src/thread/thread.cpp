@@ -1,5 +1,4 @@
 #include <fc/thread/thread.hpp>
-#include <fc/vector.hpp>
 #include <fc/io/sstream.hpp>
 #include <fc/log/logger.hpp>
 #include "thread_d.hpp"
@@ -136,7 +135,7 @@ namespace fc {
      return my->name;
    }
 
-   void thread::set_name( const fc::string& n )
+   void thread::set_name( const std::string& n )
    {
      if (!is_current())
      {
@@ -154,7 +153,7 @@ namespace fc {
       return NULL;
    }
 
-   void          thread::debug( const fc::string& d ) { /*my->debug(d);*/ }
+   void          thread::debug( const std::string& d ) { /*my->debug(d);*/ }
 
   void thread::quit()
   {
@@ -360,12 +359,12 @@ namespace fc {
 
    int wait_any( std::vector<promise_base::ptr>&& v, const microseconds& timeout_us  )
    {
-      return thread::current().wait_any_until( fc::move(v), time_point::now() + timeout_us );
+      return thread::current().wait_any_until( std::move(v), time_point::now() + timeout_us );
    }
 
    int wait_any_until( std::vector<promise_base::ptr>&& v, const time_point& tp )
    {
-      return thread::current().wait_any_until( fc::move(v), tp );
+      return thread::current().wait_any_until( std::move(v), tp );
    }
 
    void thread::wait_until( promise_base::ptr&& p, const time_point& timeout )

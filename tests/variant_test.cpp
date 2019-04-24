@@ -70,7 +70,7 @@ BOOST_AUTO_TEST_CASE( types_edge_cases_test )
 
    sv::tag_type current_value = variant_with_tagtype.get<sv::tag_type>();
    BOOST_CHECK_EQUAL( current_value, init_value );
-   BOOST_CHECK( variant_with_tagtype == init_value );
+   BOOST_CHECK( variant_with_tagtype.get<sv::tag_type>() == init_value );
 
    for (sv::tag_type i = variant_with_tagtype.count(); i-->0;)
    {

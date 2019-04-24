@@ -3,8 +3,6 @@
 #define FC_CONTEXT_STACK_SIZE (2048*1024)
 
 #include <fc/thread/task.hpp>
-#include <fc/vector.hpp>
-#include <fc/string.hpp>
 
 namespace fc {
   class time_point;
@@ -75,7 +73,7 @@ namespace fc {
        *  @note debug info is more useful if you provide a description for your
        *  async tasks and promises.
        */
-      void    debug( const fc::string& d );
+      void    debug( const std::string& d );
      
      
       /**
@@ -146,7 +144,7 @@ namespace fc {
           std::vector<fc::promise_base::ptr> proms(2);
           proms[0] = fc::static_pointer_cast<fc::promise_base>(f1.m_prom);
           proms[1] = fc::static_pointer_cast<fc::promise_base>(f2.m_prom);
-          return wait_any_until(fc::move(proms), fc::time_point::now()+timeout_us );
+          return wait_any_until(std::move(proms), fc::time_point::now()+timeout_us );
        }
     private:
       thread( class thread_d* ); // parameter is ignored, will create a new thread_d

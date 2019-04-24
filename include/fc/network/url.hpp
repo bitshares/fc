@@ -1,5 +1,4 @@
 #pragma once
-#include <fc/string.hpp>
 #include <fc/optional.hpp>
 #include <stdint.h>
 #include <fc/filesystem.hpp>
@@ -8,7 +7,7 @@
 
 namespace fc {
 
-  typedef fc::optional<fc::string>           ostring;
+  typedef fc::optional<std::string>           ostring;
   typedef fc::optional<fc::path>             opath;
   typedef fc::optional<fc::variant_object>   ovariant_object;
 

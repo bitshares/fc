@@ -10,7 +10,7 @@ namespace fc { namespace ip {
   address::address( uint32_t ip )
   :_ip(ip){}
 
-  address::address( const fc::string& s ) 
+  address::address( const std::string& s ) 
   {
     try
     {
@@ -26,7 +26,7 @@ namespace fc { namespace ip {
     return uint32_t(a) != uint32_t(b);
   }
 
-  address& address::operator=( const fc::string& s ) 
+  address& address::operator=( const std::string& s ) 
   {
     try
     {
@@ -36,7 +36,7 @@ namespace fc { namespace ip {
     return *this;
   }
 
-  address::operator fc::string()const 
+  address::operator std::string()const 
   {
     try
     {
@@ -88,7 +88,7 @@ namespace fc { namespace ip {
   {
     try
     {
-      return string(_ip) + ':' + fc::string(boost::lexical_cast<std::string>(_port).c_str());
+      return string(_ip) + ':' + std::string(boost::lexical_cast<std::string>(_port).c_str());
     }
     FC_RETHROW_EXCEPTIONS(warn, "error converting IP endpoint to string")
   }
@@ -139,7 +139,7 @@ namespace fc { namespace ip {
 
   void to_variant( const ip::endpoint& var,  variant& vo, uint32_t max_depth )
   {
-      vo = fc::string(var);
+      vo = std::string(var);
   }
   void from_variant( const variant& var,  ip::endpoint& vo, uint32_t max_depth )
   {
@@ -148,7 +148,7 @@ namespace fc { namespace ip {
 
   void to_variant( const ip::address& var,  variant& vo, uint32_t max_depth )
   {
-    vo = fc::string(var);
+    vo = std::string(var);
   }
   void from_variant( const variant& var,  ip::address& vo, uint32_t max_depth )
   {

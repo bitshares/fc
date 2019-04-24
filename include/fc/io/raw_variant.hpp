@@ -1,4 +1,5 @@
 #pragma once
+#include <algorithm>
 #include <fc/exception/exception.hpp>
 #include <fc/io/raw_fwd.hpp>
 #include <fc/variant_object.hpp>
@@ -99,23 +100,23 @@ namespace fc { namespace raw {
          }
          case variant::string_type:
          {
-            fc::string val;
+            std::string val;
             raw::unpack( s, val, _max_depth );
-            v = fc::move(val);
+            v = std::move(val);
             return;
          }
          case variant::array_type:
          {
             variants val;
             raw::unpack( s, val, _max_depth );
-            v = fc::move(val);
+            v = std::move(val);
             return;
          }
          case variant::object_type:
          {
             variant_object val;
             raw::unpack( s, val, _max_depth );
-            v = fc::move(val);
+            v = std::move(val);
             return;
          }
          default:
@@ -143,18 +144,17 @@ namespace fc { namespace raw {
        --_max_depth;
        unsigned_int vs;
        unpack( s, vs, _max_depth );
-
        mutable_variant_object mvo;
-       mvo.reserve(vs.value);
+       mvo.reserve( std::min( vs.value, static_cast<uint64_t>(FC_MAX_PREALLOC_SIZE) ) );
        for( uint32_t i = 0; i < vs.value; ++i )
        {
-          fc::string key;
+          std::string key;
           fc::variant value;
           fc::raw::unpack( s, key, _max_depth );
           fc::raw::unpack( s, value, _max_depth );
-          mvo.set( fc::move(key), fc::move(value) );
+          mvo.set( std::move(key), std::move(value) );
        }
-       v = fc::move(mvo);
+       v = std::move(mvo);
     }
 
 } } // fc::raw

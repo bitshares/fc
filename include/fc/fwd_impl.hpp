@@ -3,31 +3,33 @@
 #include <fc/utility.hpp>
 #include <fc/fwd.hpp>
 #include <new>
+#include <type_traits>
+#include <utility>
 
 namespace fc {
 
     namespace detail {
       template<typename A, typename U>
       struct add {
-        typedef decltype( *((A*)0) + *((typename fc::remove_reference<U>::type*)0) ) type; 
+        typedef decltype( *((A*)0) + *((typename std::remove_reference<U>::type*)0) ) type;
       };
       template<typename A, typename U>
       struct add_eq {
-        typedef decltype( *((A*)0) += *((typename fc::remove_reference<U>::type*)0) ) type; 
+        typedef decltype( *((A*)0) += *((typename std::remove_reference<U>::type*)0) ) type;
       };
 
       template<typename A, typename U>
       struct sub {
-        typedef decltype( *((A*)0) - *((typename fc::remove_reference<U>::type*)0) ) type; 
+        typedef decltype( *((A*)0) - *((typename std::remove_reference<U>::type*)0) ) type;
       };
 
       template<typename A, typename U>
       struct sub_eq {
-        typedef decltype( *((A*)0) -= *((typename fc::remove_reference<U>::type*)0) ) type; 
+        typedef decltype( *((A*)0) -= *((typename std::remove_reference<U>::type*)0) ) type;
       };
       template<typename A, typename U>
       struct insert_op {
-        typedef decltype( *((A*)0) << *((typename fc::remove_reference<U>::type*)0) ) type; 
+        typedef decltype( *((A*)0) << *((typename std::remove_reference<U>::type*)0) ) type;
       };
       template<typename A, typename U>
       struct extract_op {
@@ -91,7 +93,7 @@ namespace fc {
     template<typename T,unsigned int S,typename A>
     fwd<T,S,A>::fwd( fwd<T,S,A>&& f ){
       check_size<sizeof(T),sizeof(_store)>();
-      new (this) T( fc::move(*f) );
+      new (this) T( std::move(*f) );
     }
 
 
@@ -124,7 +126,7 @@ namespace fc {
 
     template<typename T,unsigned int S, typename A>
     T& fwd<T,S,A>::operator = ( fwd<T,S,A>&& u ) {
-      return **this = fc::move(*u);
+      return **this = std::move(*u);
     }
     template<typename T,unsigned int S, typename A>
     T& fwd<T,S,A>::operator = ( const fwd<T,S,A>& u ) {

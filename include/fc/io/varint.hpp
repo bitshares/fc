@@ -28,6 +28,14 @@ struct unsigned_int {
     friend bool operator<( const uint64_t& i, const unsigned_int& v )      { return i       < v.value; }
     friend bool operator<( const unsigned_int& i, const unsigned_int& v )  { return i.value < v.value; }
 
+    friend bool operator<=( const unsigned_int& i, const uint64_t& v )     { return i.value <= v; }
+    friend bool operator<=( const uint64_t& i, const unsigned_int& v )     { return i       <= v.value; }
+    friend bool operator<=( const unsigned_int& i, const unsigned_int& v ) { return i.value <= v.value; }
+
+    friend bool operator>( const unsigned_int& i, const uint64_t& v )      { return i.value > v; }
+    friend bool operator>( const uint64_t& i, const unsigned_int& v )      { return i       > v.value; }
+    friend bool operator>( const unsigned_int& i, const unsigned_int& v )  { return i.value > v.value; }
+
     friend bool operator>=( const unsigned_int& i, const uint64_t& v )     { return i.value >= v; }
     friend bool operator>=( const uint64_t& i, const unsigned_int& v )     { return i       >= v.value; }
     friend bool operator>=( const unsigned_int& i, const unsigned_int& v ) { return i.value >= v.value; }

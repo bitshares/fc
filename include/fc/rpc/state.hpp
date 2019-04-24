@@ -26,7 +26,7 @@ namespace fc { namespace rpc {
       response( int64_t i, fc::variant r, string j ):id(i),jsonrpc(j),result(r){}
       response( int64_t i, error_object r, string j ):id(i),jsonrpc(j),error(r){}
       int64_t                id = 0;
-      optional<fc::string>   jsonrpc;
+      optional<std::string>   jsonrpc;
       optional<fc::variant>  result;
       optional<error_object> error;
    };
@@ -37,8 +37,8 @@ namespace fc { namespace rpc {
          typedef std::function<variant(const variants&)>       method;
          ~state();
 
-         void add_method( const fc::string& name, method m );
-         void remove_method( const fc::string& name );
+         void add_method( const std::string& name, method m );
+         void remove_method( const std::string& name );
 
          variant local_call( const string& method_name, const variants& args );
          void    handle_reply( const response& response );

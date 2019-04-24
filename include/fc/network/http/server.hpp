@@ -35,7 +35,7 @@ namespace fc { namespace http {
           response& operator=(const response& );
           response& operator=( response&& );
 
-          void add_header( const fc::string& key, const fc::string& val )const;
+          void add_header( const std::string& key, const std::string& val )const;
           void set_status( const http::reply::status_code& s )const;
           void set_length( uint64_t s )const;
 

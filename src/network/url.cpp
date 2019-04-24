@@ -1,5 +1,4 @@
 #include <fc/network/url.hpp>
-#include <fc/string.hpp>
 #include <fc/io/sstream.hpp>
 #include <fc/exception/exception.hpp>
 #include <fc/log/logger.hpp>
@@ -12,7 +11,7 @@ namespace fc
     class url_impl
     {
       public:
-         void parse( const fc::string& s )
+         void parse( const std::string& s )
          {
            std::stringstream ss(s);
            std::string skip,_lpath,_largs,luser,lpass;
@@ -20,23 +19,23 @@ namespace fc
            std::getline( ss, skip, '/' );
            std::getline( ss, skip, '/' );
            
-           if( s.find('@') != size_t(fc::string::npos) ) {
-             fc::string user_pass;
+           if( s.find('@') != size_t(std::string::npos) ) {
+             std::string user_pass;
              std::getline( ss, user_pass, '@' );
              std::stringstream upss(user_pass);
-             if( user_pass.find( ':' ) != size_t(fc::string::npos) ) {
+             if( user_pass.find( ':' ) != size_t(std::string::npos) ) {
                 std::getline( upss, luser, ':' );
                 std::getline( upss, lpass, ':' );
-                _user = fc::move(luser);
-                _pass = fc::move(lpass);
+                _user = std::move(luser);
+                _pass = std::move(lpass);
              } else {
-                _user = fc::move(user_pass);
+                _user = std::move(user_pass);
              }
            }
-           fc::string host_port;
+           std::string host_port;
            std::getline( ss, host_port, '/' );
            auto pos = host_port.find( ':' );
-           if( pos != fc::string::npos ) {
+           if( pos != std::string::npos ) {
               try {
               _port = static_cast<uint16_t>(to_uint64( host_port.substr( pos+1 ) ));
               } catch ( ... ) {
@@ -44,7 +43,7 @@ namespace fc
               }
               _host = host_port.substr(0,pos);
            } else {
-              _host = fc::move(host_port);
+              _host = std::move(host_port);
            }
            std::getline( ss, _lpath, '?' );
 #ifdef WIN32
@@ -62,7 +61,7 @@ namespace fc
            std::getline( ss, _largs );
            if( _args.valid() && _args->size() ) 
            {
-             // TODO: args = fc::move(_args);
+             // TODO: args = std::move(_args);
            }
          }
 
@@ -78,7 +77,7 @@ namespace fc
 
   void to_variant( const url& u, fc::variant& v, uint32_t max_depth )
   {
-    v = fc::string(u);
+    v = std::string(u);
   }
   void from_variant( const fc::variant& v, url& u, uint32_t max_depth )
   {
@@ -102,7 +101,7 @@ namespace fc
       return ss.str();
   }
 
-  url::url( const fc::string& u )
+  url::url( const std::string& u )
   :my( std::make_shared<detail::url_impl>() )
   {
     my->parse(u);
@@ -122,7 +121,7 @@ namespace fc
   :my(u.my){}
 
   url::url( url&& u )
-  :my( fc::move(u.my) )
+  :my( std::move(u.my) )
   {
     u.my = get_null_url();
   }
@@ -133,7 +132,7 @@ namespace fc
 
   }
   url::url( mutable_url&& mu )
-  :my( fc::move( mu.my ) )
+  :my( std::move( mu.my ) )
   { }
 
   url::~url(){}
@@ -148,7 +147,7 @@ namespace fc
   {
      if( this != &u )
      {
-        my = fc::move(u.my);
+        my = std::move(u.my);
         u.my= get_null_url();
      }
      return *this;
@@ -160,7 +159,7 @@ namespace fc
   }
   url& url::operator=(mutable_url&& u )
   {
-     my = fc::move(u.my);
+     my = std::move(u.my);
      return *this;
   }
 

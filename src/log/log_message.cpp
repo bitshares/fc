@@ -75,13 +75,13 @@ namespace fc
            my->context      = obj["context"].as<string>(max_depth);
    }
 
-   fc::string log_context::to_string()const
+   std::string log_context::to_string()const
    {
       return my->thread_name + "  " + my->file + ":" + fc::to_string(my->line) + " " + my->method;
 
    }
 
-   void log_context::append_context( const fc::string& s )
+   void log_context::append_context( const std::string& s )
    {
         if (!my->context.empty())
           my->context += " -> ";

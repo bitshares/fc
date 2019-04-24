@@ -4,7 +4,7 @@
 
 namespace fc
 {
-  std::vector<fc::ip::endpoint> resolve( const fc::string& host, uint16_t port )
+  std::vector<fc::ip::endpoint> resolve( const std::string& host, uint16_t port )
   {
     auto ep = fc::asio::tcp::resolve( host, std::to_string(uint64_t(port)) );
     std::vector<fc::ip::endpoint> eps;

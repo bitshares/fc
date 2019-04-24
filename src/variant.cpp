@@ -140,31 +140,31 @@ variant::variant( const wchar_t* str, uint32_t max_depth )
    set_variant_type( this, string_type );
 }
 
-variant::variant( fc::string val, uint32_t max_depth )
+variant::variant( std::string val, uint32_t max_depth )
 {
-   *reinterpret_cast<string**>(this)  = new string( fc::move(val) );
+   *reinterpret_cast<string**>(this)  = new string( std::move(val) );
    set_variant_type( this, string_type );
 }
 variant::variant( blob val, uint32_t max_depth )
 {
-   *reinterpret_cast<blob**>(this)  = new blob( fc::move(val) );
+   *reinterpret_cast<blob**>(this)  = new blob( std::move(val) );
    set_variant_type( this, blob_type );
 }
 
 variant::variant( variant_object obj, uint32_t max_depth )
 {
-   *reinterpret_cast<variant_object**>(this) = new variant_object(fc::move(obj));
+   *reinterpret_cast<variant_object**>(this) = new variant_object(std::move(obj));
    set_variant_type(this,  object_type );
 }
 variant::variant( mutable_variant_object obj, uint32_t max_depth )
 {
-   *reinterpret_cast<variant_object**>(this) = new variant_object(fc::move(obj));
+   *reinterpret_cast<variant_object**>(this) = new variant_object(std::move(obj));
    set_variant_type(this,  object_type );
 }
 
 variant::variant( variants arr, uint32_t max_depth )
 {
-   *reinterpret_cast<variants**>(this)  = new variants(fc::move(arr));
+   *reinterpret_cast<variants**>(this)  = new variants(std::move(arr));
    set_variant_type(this,  array_type );
 }
 
@@ -647,7 +647,7 @@ void from_variant( const variant& var, float& vo, uint32_t max_depth )
 
 void to_variant( const std::string& s, variant& v, uint32_t max_depth )
 {
-    v = variant( fc::string(s), max_depth );
+    v = variant( std::string(s), max_depth );
 }
 
 void from_variant( const variant& var, string& vo, uint32_t max_depth )

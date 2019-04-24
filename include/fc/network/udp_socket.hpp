@@ -1,5 +1,4 @@
 #pragma once
-#include <fc/utility.hpp>
 #include <fc/shared_ptr.hpp>
 #include <memory>
 

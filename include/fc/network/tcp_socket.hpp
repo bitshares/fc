@@ -1,5 +1,4 @@
 #pragma once
-#include <fc/utility.hpp>
 #include <fc/fwd.hpp>
 #include <fc/io/iostream.hpp>
 #include <fc/time.hpp>
@@ -52,7 +51,7 @@ namespace fc {
       friend class tcp_server;
       class impl;
       #ifdef _WIN64
-      fc::fwd<impl,0x81> my;
+      fc::fwd<impl,0x88> my;
       #else
       fc::fwd<impl,0x54> my;
       #endif

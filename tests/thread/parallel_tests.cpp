@@ -74,7 +74,7 @@ BOOST_AUTO_TEST_CASE( do_something_parallel )
    results.reserve( 20 );
    boost::thread_specific_ptr<int> tls;
    for( size_t i = 0; i < results.capacity(); i++ )
-      results.push_back( fc::do_parallel( [i,&tls] () {
+      results.push_back( fc::do_parallel( [&tls] () {
          if( !tls.get() ) { tls.reset( new int(0) ); }
          result res = { boost::this_thread::get_id(), (*tls.get())++ };
          return res;
@@ -92,7 +92,7 @@ BOOST_AUTO_TEST_CASE( do_something_parallel )
    {  // check that thread_local_storage counter works
       std::sort( pair.second.begin(), pair.second.end() );
       for( size_t i = 0; i < pair.second.size(); i++ )
-         BOOST_CHECK_EQUAL( i, pair.second[i] );
+         BOOST_CHECK_EQUAL( (int64_t)i, pair.second[i] );
    }
 }
 
@@ -205,7 +205,7 @@ BOOST_AUTO_TEST_CASE( serial_valve )
       auto p1 = fc::async([&counter,&valve,syncer,waiter] () {
          valve.do_serial( [syncer,waiter](){ syncer->set_value();
                                              fc::future<void>( fc::shared_ptr<fc::promise<void>>( waiter, true ) ).wait(); },
-                          [&counter](){ BOOST_CHECK_EQUAL( 0, counter.load() );
+                          [&counter](){ BOOST_CHECK_EQUAL( 0u, counter.load() );
                                         counter.fetch_add(1); } );
       });
       fc::future<void>( fc::shared_ptr<fc::promise<void>>( syncer, true ) ).wait();
@@ -215,7 +215,7 @@ BOOST_AUTO_TEST_CASE( serial_valve )
       syncer = new fc::promise<void>();
       auto p2 = fc::async([&counter,&valve,syncer] () {
          valve.do_serial( [syncer](){ syncer->set_value(); },
-                          [&counter](){ BOOST_CHECK_EQUAL( 1, counter.load() );
+                          [&counter](){ BOOST_CHECK_EQUAL( 1u, counter.load() );
                                         counter.fetch_add(1); } );
       });
       fc::future<void>( fc::shared_ptr<fc::promise<void>>( syncer, true ) ).wait();
@@ -233,7 +233,7 @@ BOOST_AUTO_TEST_CASE( serial_valve )
 
       BOOST_CHECK( p1.ready() );
       BOOST_CHECK( p2.ready() );
-      BOOST_CHECK_EQUAL( 2, counter.load() );
+      BOOST_CHECK_EQUAL( 2u, counter.load() );
    }
 
    { // Triple test, f3 finishes first, then f1, finally f2
@@ -243,7 +243,7 @@ BOOST_AUTO_TEST_CASE( serial_valve )
       auto p1 = fc::async([&counter,&valve,syncer,waiter] () {
          valve.do_serial( [&syncer,waiter](){ syncer->set_value();
                                               fc::future<void>( fc::shared_ptr<fc::promise<void>>( waiter, true ) ).wait(); },
-                          [&counter](){ BOOST_CHECK_EQUAL( 0, counter.load() );
+                          [&counter](){ BOOST_CHECK_EQUAL( 0u, counter.load() );
                                         counter.fetch_add(1); } );
       });
       fc::future<void>( fc::shared_ptr<fc::promise<void>>( syncer, true ) ).wait();
@@ -254,7 +254,7 @@ BOOST_AUTO_TEST_CASE( serial_valve )
       auto p2 = fc::async([&counter,&valve,syncer] () {
          valve.do_serial( [&syncer](){ syncer->set_value();
                                        fc::usleep( fc::milliseconds(100) ); },
-                          [&counter](){ BOOST_CHECK_EQUAL( 1, counter.load() );
+                          [&counter](){ BOOST_CHECK_EQUAL( 1u, counter.load() );
                                         counter.fetch_add(1); } );
       });
       fc::future<void>( fc::shared_ptr<fc::promise<void>>( syncer, true ) ).wait();
@@ -264,7 +264,7 @@ BOOST_AUTO_TEST_CASE( serial_valve )
       syncer = new fc::promise<void>();
       auto p3 = fc::async([&counter,&valve,syncer] () {
          valve.do_serial( [syncer](){ syncer->set_value(); },
-                          [&counter](){ BOOST_CHECK_EQUAL( 2, counter.load() );
+                          [&counter](){ BOOST_CHECK_EQUAL( 2u, counter.load() );
                                         counter.fetch_add(1); } );
       });
       fc::future<void>( fc::shared_ptr<fc::promise<void>>( syncer, true ) ).wait();
@@ -284,7 +284,7 @@ BOOST_AUTO_TEST_CASE( serial_valve )
       BOOST_CHECK( p1.ready() );
       BOOST_CHECK( p2.ready() );
       BOOST_CHECK( p3.ready() );
-      BOOST_CHECK_EQUAL( 3, counter.load() );
+      BOOST_CHECK_EQUAL( 3u, counter.load() );
    }
 
    { // Triple test again but with invocations from different threads
@@ -294,7 +294,7 @@ BOOST_AUTO_TEST_CASE( serial_valve )
       auto p1 = fc::do_parallel([&counter,&valve,syncer,waiter] () {
          valve.do_serial( [&syncer,waiter](){ syncer->set_value();
                                               fc::future<void>( fc::shared_ptr<fc::promise<void>>( waiter, true ) ).wait(); },
-                          [&counter](){ BOOST_CHECK_EQUAL( 0, counter.load() );
+                          [&counter](){ BOOST_CHECK_EQUAL( 0u, counter.load() );
                                         counter.fetch_add(1); } );
       });
       fc::future<void>( fc::shared_ptr<fc::promise<void>>( syncer, true ) ).wait();
@@ -305,7 +305,7 @@ BOOST_AUTO_TEST_CASE( serial_valve )
       auto p2 = fc::do_parallel([&counter,&valve,syncer] () {
          valve.do_serial( [&syncer](){ syncer->set_value();
                                        fc::usleep( fc::milliseconds(100) ); },
-                          [&counter](){ BOOST_CHECK_EQUAL( 1, counter.load() );
+                          [&counter](){ BOOST_CHECK_EQUAL( 1u, counter.load() );
                                         counter.fetch_add(1); } );
       });
       fc::future<void>( fc::shared_ptr<fc::promise<void>>( syncer, true ) ).wait();
@@ -315,7 +315,7 @@ BOOST_AUTO_TEST_CASE( serial_valve )
       syncer = new fc::promise<void>();
       auto p3 = fc::do_parallel([&counter,&valve,syncer] () {
          valve.do_serial( [syncer](){ syncer->set_value(); },
-                          [&counter](){ BOOST_CHECK_EQUAL( 2, counter.load() );
+                          [&counter](){ BOOST_CHECK_EQUAL( 2u, counter.load() );
                                         counter.fetch_add(1); } );
       });
       fc::future<void>( fc::shared_ptr<fc::promise<void>>( syncer, true ) ).wait();
@@ -335,7 +335,7 @@ BOOST_AUTO_TEST_CASE( serial_valve )
       BOOST_CHECK( p1.ready() );
       BOOST_CHECK( p2.ready() );
       BOOST_CHECK( p3.ready() );
-      BOOST_CHECK_EQUAL( 3, counter.load() );
+      BOOST_CHECK_EQUAL( 3u, counter.load() );
    }
 }
 

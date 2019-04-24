@@ -2,7 +2,6 @@
 #include <fc/filesystem.hpp>
 #include <fc/exception/exception.hpp>
 #include <fc/fwd_impl.hpp>
-#include <fc/utility.hpp>
 #include <fc/io/fstream.hpp>
 
 #include <fc/utf8.hpp>
@@ -52,7 +51,7 @@ namespace fc {
 
    path::path( const char* p )
    :_p(p){}
-   path::path( const fc::string& p )
+   path::path( const std::string& p )
    :_p(p.c_str()){}
 
    path::path(const std::wstring& p)
@@ -69,7 +68,7 @@ namespace fc {
     return *this;
    }
    path& path::operator =( path&& p ) {
-    *_p = fc::move( *p._p );
+    *_p = std::move( *p._p );
     return *this;
    }
 
@@ -93,11 +92,11 @@ namespace fc {
    path::operator const boost::filesystem::path& ()const {
     return *_p;
    }
-   fc::string path::generic_string()const {
+   std::string path::generic_string()const {
     return _p->generic_string();
    }
 
-   fc::string path::preferred_string() const
+   std::string path::preferred_string() const
    {
      return boost::filesystem::path(*_p).make_preferred().string();
    }
@@ -140,13 +139,13 @@ namespace fc {
     *  @todo use iterators instead of indexes for 
     *  faster performance
     */
-   fc::string path::windows_string()const {
+   std::string path::windows_string()const {
      std::string result = _p->generic_string();
      std::replace(result.begin(), result.end(), '/', '\\');
      return result;
    }
 
-   fc::string path::string()const {
+   std::string path::string()const {
     return _p->string();
    }
    fc::path path::filename()const {
@@ -501,102 +500,5 @@ namespace fc {
      static fc::path appCurrentPath = boost::filesystem::current_path();
      return appCurrentPath;
    }
-
-
-#ifdef FC_HAS_SIMPLE_FILE_LOCK  
-  class simple_lock_file::impl
-  {
-  public:
-#ifdef _WIN32
-    HANDLE file_handle;
-#else
-    int file_handle;
-#endif
-    bool is_locked;
-    path lock_file_path;
-
-    impl(const path& lock_file_path);
-    ~impl();
-
-    bool try_lock();
-    void unlock();
-  };
-  
-  simple_lock_file::impl::impl(const path& lock_file_path) :
-#ifdef _WIN32
-    file_handle(INVALID_HANDLE_VALUE),
-#else
-    file_handle(-1),
-#endif
-    is_locked(false),
-    lock_file_path(lock_file_path)
-  {}
-   
-  simple_lock_file::impl::~impl()
-  {
-    unlock();
-  }
-
-  bool simple_lock_file::impl::try_lock()
-  {
-#ifdef _WIN32
-    HANDLE fh = CreateFileA(lock_file_path.to_native_ansi_path().c_str(),
-                            GENERIC_READ | GENERIC_WRITE,
-                            0, 0,
-                            OPEN_ALWAYS, 0, NULL);
-    if (fh == INVALID_HANDLE_VALUE)
-      return false;
-    is_locked = true;
-    file_handle = fh;
-    return true;
-#else
-    int fd = open(lock_file_path.string().c_str(), O_RDWR|O_CREAT, 0644);
-    if (fd < 0)
-      return false;
-    if (flock(fd, LOCK_EX|LOCK_NB) == -1)
-    {
-      close(fd);
-      return false;
-    }
-    is_locked = true;
-    file_handle = fd;
-    return true;
-#endif
-  }
-
-  void simple_lock_file::impl::unlock()
-  {
-#ifdef WIN32
-    CloseHandle(file_handle);
-    file_handle = INVALID_HANDLE_VALUE;
-    is_locked = false;
-#else
-    flock(file_handle, LOCK_UN);
-    close(file_handle);
-    file_handle = -1;
-    is_locked = false;
-#endif
-  }
-
-
-  simple_lock_file::simple_lock_file(const path& lock_file_path) :
-    my(new impl(lock_file_path))
-  {
-  }
-
-  simple_lock_file::~simple_lock_file()
-  {
-  }
-
-  bool simple_lock_file::try_lock()
-  {
-    return my->try_lock();
-  }
-
-  void simple_lock_file::unlock()
-  {
-    my->unlock();
-  }
-#endif // FC_HAS_SIMPLE_FILE_LOCK
 
 }

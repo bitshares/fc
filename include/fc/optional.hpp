@@ -1,6 +1,7 @@
 #pragma once
 #include <fc/utility.hpp>
 #include <assert.h>
+#include <utility>
 
 
 namespace fc {
@@ -43,7 +44,7 @@ namespace fc {
       optional( optional&& o )
       :_valid(false) 
       {
-        if( o._valid ) new (ptr()) T( fc::move(*o) );
+        if( o._valid ) new (ptr()) T( std::move(*o) );
         _valid = o._valid;
         o.reset();
       }
@@ -71,7 +72,7 @@ namespace fc {
       optional( optional<U>&& o )
       :_valid(false) 
       {
-        if( o._valid ) new (ptr()) T( fc::move(*o) );
+        if( o._valid ) new (ptr()) T( std::move(*o) );
         _valid = o._valid;
         o.reset();
       }
@@ -156,10 +157,10 @@ namespace fc {
         {
           if( _valid && o._valid ) 
           {
-            ref() = fc::move(*o);
+            ref() = std::move(*o);
             o.reset();
           } else if ( !_valid && o._valid ) {
-            *this = fc::move(*o);
+            *this = std::move(*o);
           } else if (_valid) {
             reset();
           }
@@ -173,10 +174,10 @@ namespace fc {
         {
           if( _valid && o._valid ) 
           {
-            ref() = fc::move(*o);
+            ref() = std::move(*o);
             o.reset();
           } else if ( !_valid && o._valid ) {
-            *this = fc::move(*o);
+            *this = std::move(*o);
           } else if (_valid) {
             reset();
           }

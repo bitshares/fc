@@ -171,7 +171,7 @@ static bool equal( const fc::variant& a, const fc::variant& b )
          return true;
       case fc::variant::type_id::blob_type:
       default:
-         FC_THROW_EXCEPTION( fc::invalid_arg_exception, "Unsupported variant type: " + a.get_type() );
+         FC_THROW_EXCEPTION( fc::invalid_arg_exception, "Unsupported variant type: {t}", ( "t", a.get_type() ) );
     }
 }
 
@@ -348,7 +348,7 @@ BOOST_AUTO_TEST_CASE(rethrow_test)
       } FC_RETHROW_EXCEPTIONS( warn, "Argh! ${biggie}", ("biggie",biggie) ) };
    BOOST_CHECK_THROW( test_r(), fc::unknown_host_exception );
 
-   auto test_lr = [&biggie](){
+   auto test_lr = [](){
       try {
          FC_THROW_EXCEPTION( fc::unknown_host_exception, "WTF?" );
       } FC_LOG_AND_RETHROW() };

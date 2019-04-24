@@ -1,5 +1,4 @@
 #pragma once
-#include <fc/utility.hpp>
 #include <fc/time.hpp>
 #include <fc/shared_ptr.hpp>
 #include <fc/exception/exception.hpp>
@@ -35,7 +34,7 @@ namespace fc {
      template<typename Functor, typename T>
      class completion_handler_impl : public completion_handler {
        public:
-         completion_handler_impl( Functor&& f ):_func(fc::move(f)){}
+         completion_handler_impl( Functor&& f ):_func(std::move(f)){}
          completion_handler_impl( const Functor& f ):_func(f){}
      
          virtual void on_complete( const void* v, const fc::exception_ptr& e ) {
@@ -47,7 +46,7 @@ namespace fc {
      template<typename Functor>
      class completion_handler_impl<Functor,void> : public completion_handler {
        public:
-         completion_handler_impl( Functor&& f ):_func(fc::move(f)){}
+         completion_handler_impl( Functor&& f ):_func(std::move(f)){}
          completion_handler_impl( const Functor& f ):_func(f){}
          virtual void on_complete( const void* v, const fc::exception_ptr& e ) {
            _func(e);
@@ -110,7 +109,7 @@ namespace fc {
       typedef fc::shared_ptr< promise<T> > ptr;
       promise( const char* desc FC_TASK_NAME_DEFAULT_ARG):promise_base(desc){}
       promise( const T& val ){ set_value(val); }
-      promise( T&& val ){ set_value(fc::move(val) ); }
+      promise( T&& val ){ set_value(std::move(val) ); }
     
       const T& wait(const microseconds& timeout = microseconds::maximum() ){
         this->_wait( timeout );
@@ -127,7 +126,7 @@ namespace fc {
       }
 
       void set_value( T&& v ) {
-        result = fc::move(v);
+        result = std::move(v);
         _set_value(&*result);
       }
 
@@ -186,12 +185,12 @@ namespace fc {
   class future {
     public:
       future( const fc::shared_ptr<promise<T>>& p ):m_prom(p){}
-      future( fc::shared_ptr<promise<T>>&& p ):m_prom(fc::move(p)){}
+      future( fc::shared_ptr<promise<T>>&& p ):m_prom(std::move(p)){}
       future(const future<T>& f ) : m_prom(f.m_prom){}
       future(){}
 
       future& operator=(future<T>&& f ) {
-        fc_swap(m_prom,f.m_prom); 
+        std::swap(m_prom,f.m_prom);
         return *this;
       }
 
@@ -259,12 +258,12 @@ namespace fc {
   class future<void> {
     public:
       future( const fc::shared_ptr<promise<void>>& p ):m_prom(p){}
-      future( fc::shared_ptr<promise<void>>&& p ):m_prom(fc::move(p)){}
+      future( fc::shared_ptr<promise<void>>&& p ):m_prom(std::move(p)){}
       future(const future<void>& f ) : m_prom(f.m_prom){}
       future(){}
 
       future& operator=(future<void>&& f ) {
-        fc_swap(m_prom,f.m_prom); 
+        std::swap(m_prom,f.m_prom);
         return *this;
       }
 

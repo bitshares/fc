@@ -46,7 +46,9 @@ BOOST_AUTO_TEST_CASE(bigint_test_2)
         BOOST_CHECK( bi_accu >= a_1 );
     } while ( bi_accu.log2() <= 128 );
 
-    bi_accu = bi_accu;
+    // Test self-assignment (a=a) has no effect, but throw in some arcanity to avoid a compiler warning
+    const volatile auto* bi_accu_self = &bi_accu;
+    bi_accu = const_cast<fc::bigint&>(*bi_accu_self);
 
     BOOST_CHECK( bi_accu && !bi_accu.is_negative() && bi_accu != bi_1 );
 

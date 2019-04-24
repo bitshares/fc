@@ -46,7 +46,7 @@ BOOST_AUTO_TEST_CASE(log_reboot)
         int64_t interval_seconds = conf.rotation_interval.to_seconds();
         int64_t file_number = now.sec_since_epoch() / interval_seconds;
         fc::time_point_sec start_time = fc::time_point_sec( (uint32_t)(file_number * interval_seconds) );
-        fc::string timestamp_string = start_time.to_non_delimited_iso_string();
+        std::string timestamp_string = start_time.to_non_delimited_iso_string();
         fc::path link_filename = conf.filename;
         fc::path log_filename = link_filename.parent_path() / (link_filename.filename().string() + "." + timestamp_string);
 

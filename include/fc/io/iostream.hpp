@@ -1,7 +1,6 @@
 #pragma once
-#include <fc/utility.hpp>
-#include <fc/string.hpp>
 #include <memory>
+#include <string>
 
 namespace fc {
 
@@ -61,7 +60,7 @@ namespace fc {
 
   class iostream : public virtual ostream, public virtual istream {};
 
-  fc::istream& getline( fc::istream&, fc::string&, char delim = '\n' );
+  fc::istream& getline( fc::istream&, std::string&, char delim = '\n' );
 
   template<size_t N>
   ostream& operator<<( ostream& o, char (&array)[N] )
@@ -72,7 +71,7 @@ namespace fc {
   ostream& operator<<( ostream& o, char );
   ostream& operator<<( ostream& o, const char* v );
   ostream& operator<<( ostream& o, const std::string& v );
-  ostream& operator<<( ostream& o, const fc::string& v );
+  ostream& operator<<( ostream& o, const std::string& v );
   ostream& operator<<( ostream& o, const double& v );
   ostream& operator<<( ostream& o, const float& v );
   ostream& operator<<( ostream& o, const int64_t& v );
@@ -88,7 +87,7 @@ namespace fc {
 #endif
 
   istream& operator>>( istream& o, std::string& v );
-  istream& operator>>( istream& o, fc::string& v );
+  istream& operator>>( istream& o, std::string& v );
   istream& operator>>( istream& o, char& v );
   istream& operator>>( istream& o, double& v );
   istream& operator>>( istream& o, float& v );

@@ -17,9 +17,9 @@ namespace fc
     // forward declarations of provided functions
     template<typename T, json::parse_type parser_type> variant variant_from_stream( T& in, uint32_t max_depth );
     template<typename T> char parseEscape( T& in );
-    template<typename T> fc::string stringFromStream( T& in );
+    template<typename T> std::string stringFromStream( T& in );
     template<typename T> bool skip_white_space( T& in );
-    template<typename T> fc::string stringFromToken( T& in );
+    template<typename T> std::string stringFromToken( T& in );
     template<typename T> variant_object objectFromStreamBase( T& in, std::function<std::string(T&)>& get_key, std::function<variant(T&)>& get_value );
     template<typename T, json::parse_type parser_type> variant_object objectFromStream( T& in, uint32_t max_depth );
     template<typename T> variants arrayFromStreamBase( T& in, std::function<variant(T&)>& get_value );
@@ -30,7 +30,7 @@ namespace fc
     template<typename T> void to_stream( T& os, const variants& a, json::output_formatting format, uint32_t max_depth );
     template<typename T> void to_stream( T& os, const variant_object& o, json::output_formatting format, uint32_t max_depth );
     template<typename T> void to_stream( T& os, const variant& v, json::output_formatting format, uint32_t max_depth );
-    fc::string pretty_print( const fc::string& v, uint8_t indent );
+    std::string pretty_print( const std::string& v, uint8_t indent );
 }
 
 #if __cplusplus > 201402L
@@ -94,7 +94,7 @@ namespace fc
    }
 
    template<typename T>
-   fc::string stringFromStream( T& in )
+   std::string stringFromStream( T& in )
    {
       fc::stringstream token;
       try
@@ -131,7 +131,7 @@ namespace fc
                                           ("token", token.str() ) );
    }
    template<typename T>
-   fc::string stringFromToken( T& in )
+   std::string stringFromToken( T& in )
    {
       fc::stringstream token;
       try
@@ -324,7 +324,7 @@ namespace fc
       catch (const std::ios_base::failure&)
       { // read error ends the loop
       }
-      fc::string str = ss.str();
+      std::string str = ss.str();
       if (str == "-." || str == "." || str == "-") // check the obviously wrong things we could have encountered
         FC_THROW_EXCEPTION(parse_error_exception, "Can't parse token \"${token}\" as a JSON numeric constant", ("token", str));
       if( dot )
@@ -380,7 +380,7 @@ namespace fc
 
       // we can get here either by processing a delimiter as in "null,"
       // an EOF like "null<EOF>", or an invalid token like "nullZ"
-      fc::string str = ss.str();
+      std::string str = ss.str();
       if( str == "null" )
         return variant();
       if( str == "true" )
@@ -547,7 +547,7 @@ namespace fc
       }
       os << '"';
    }
-   ostream& json::to_stream( ostream& out, const fc::string& str )
+   ostream& json::to_stream( ostream& out, const std::string& str )
    {
         escape_string( str, out );
         return out;
@@ -631,11 +631,11 @@ namespace fc
               to_stream(os, v.get_object(), format, max_depth - 1 );
               return;
          default:
-            FC_THROW_EXCEPTION( fc::invalid_arg_exception, "Unsupported variant type: " + v.get_type() );
+            FC_THROW_EXCEPTION( fc::invalid_arg_exception, "Unsupported variant type: ${type}", ( "type", v.get_type() ) );
       }
    }
 
-   fc::string   json::to_string( const variant& v, output_formatting format, uint32_t max_depth )
+   std::string   json::to_string( const variant& v, output_formatting format, uint32_t max_depth )
    {
       fc::stringstream ss;
       fc::to_stream( ss, v, format, max_depth );
@@ -643,7 +643,7 @@ namespace fc
    }
 
 
-    fc::string pretty_print( const fc::string& v, uint8_t indent ) {
+    std::string pretty_print( const std::string& v, uint8_t indent ) {
       int level = 0;
       fc::stringstream ss;
       bool first = false;
@@ -733,7 +733,7 @@ namespace fc
 
 
 
-   fc::string json::to_pretty_string( const variant& v, output_formatting format, uint32_t max_depth )
+   std::string json::to_pretty_string( const variant& v, output_formatting format, uint32_t max_depth )
    {
 	   return pretty_print(to_string(v, format, max_depth), 2);
    }

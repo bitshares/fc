@@ -3,7 +3,6 @@
 #include <boost/chrono/system_clocks.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <sstream>
-#include <fc/string.hpp>
 #include <fc/io/sstream.hpp>
 #include <fc/exception/exception.hpp>
 
@@ -16,24 +15,24 @@ namespace fc {
      return time_point( microseconds( bch::duration_cast<bch::microseconds>( bch::system_clock::now().time_since_epoch() ).count() ) );
   }
 
-  fc::string time_point_sec::to_non_delimited_iso_string()const
+  std::string time_point_sec::to_non_delimited_iso_string()const
   {
     const auto ptime = boost::posix_time::from_time_t( time_t( sec_since_epoch() ) );
     return boost::posix_time::to_iso_string( ptime );
   }
 
-  fc::string time_point_sec::to_iso_string()const
+  std::string time_point_sec::to_iso_string()const
   {
     const auto ptime = boost::posix_time::from_time_t( time_t( sec_since_epoch() ) );
     return boost::posix_time::to_iso_extended_string( ptime );
   }
 
-  time_point_sec::operator fc::string()const
+  time_point_sec::operator std::string()const
   {
       return this->to_iso_string();
   }
 
-  time_point_sec time_point_sec::from_iso_string( const fc::string& s )
+  time_point_sec time_point_sec::from_iso_string( const std::string& s )
   { try {
       static boost::posix_time::ptime epoch = boost::posix_time::from_time_t( 0 );
       boost::posix_time::ptime pt;
@@ -44,24 +43,24 @@ namespace fc {
       return fc::time_point_sec( (pt - epoch).total_seconds() );
   } FC_RETHROW_EXCEPTIONS( warn, "unable to convert ISO-formatted string to fc::time_point_sec" ) }
 
-  time_point::operator fc::string()const
+  time_point::operator std::string()const
   {
-      return fc::string( time_point_sec( *this ) );
+      return std::string( time_point_sec( *this ) );
   }
 
-  time_point time_point::from_iso_string( const fc::string& s )
+  time_point time_point::from_iso_string( const std::string& s )
   { try {
       return time_point( time_point_sec::from_iso_string( s ) );
   } FC_RETHROW_EXCEPTIONS( warn, "unable to convert ISO-formatted string to fc::time_point" ) }
 
   void to_variant( const fc::time_point& t, variant& v, uint32_t max_depth ) {
-    to_variant( fc::string( t ), v, max_depth );
+    to_variant( std::string( t ), v, max_depth );
   }
   void from_variant( const fc::variant& v, fc::time_point& t, uint32_t max_depth ) {
     t = fc::time_point::from_iso_string( v.as_string() );
   }
   void to_variant( const fc::time_point_sec& t, variant& v, uint32_t max_depth ) {
-    to_variant( fc::string( t ), v, max_depth );
+    to_variant( std::string( t ), v, max_depth );
   }
   void from_variant( const fc::variant& v, fc::time_point_sec& t, uint32_t max_depth ) {
     t = fc::time_point_sec::from_iso_string( v.as_string() );

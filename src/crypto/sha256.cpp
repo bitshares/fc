@@ -202,7 +202,7 @@ namespace fc {
       std::vector<char> ve = v.as< std::vector<char> >( max_depth );
       memset( &bi, char(0), sizeof(bi) );
       if( ve.size() )
-         memcpy( &bi, ve.data(), fc::min<size_t>(ve.size(),sizeof(bi)) );
+         memcpy( &bi, ve.data(), std::min<size_t>(ve.size(),sizeof(bi)) );
   }
 
   uint64_t hash64(const char* buf, size_t len)

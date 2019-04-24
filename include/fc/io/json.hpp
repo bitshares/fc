@@ -33,7 +33,7 @@ namespace fc
             legacy_generator = 1
          };
 
-         static ostream& to_stream( ostream& out, const fc::string& );
+         static ostream& to_stream( ostream& out, const std::string& );
          static ostream& to_stream( ostream& out, const variant& v, output_formatting format = stringify_large_ints_and_doubles, uint32_t max_depth = DEFAULT_MAX_RECURSION_DEPTH );
          static ostream& to_stream( ostream& out, const variants& v, output_formatting format = stringify_large_ints_and_doubles, uint32_t max_depth = DEFAULT_MAX_RECURSION_DEPTH );
          static ostream& to_stream( ostream& out, const variant_object& v, output_formatting format = stringify_large_ints_and_doubles, uint32_t max_depth = DEFAULT_MAX_RECURSION_DEPTH );

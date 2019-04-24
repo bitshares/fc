@@ -1,5 +1,4 @@
 #pragma once
-#include <fc/aligned.hpp>
 
 namespace fc {
 
@@ -37,7 +36,7 @@ class fwd {
     ~fwd();
     
   private:
-    aligned<S,Align> _store;
+    alignas(Align) char _store[S];
 };
   
 

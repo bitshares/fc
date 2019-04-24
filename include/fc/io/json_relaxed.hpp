@@ -10,7 +10,6 @@
 #include <fc/io/fstream.hpp>
 #include <fc/io/sstream.hpp>
 #include <fc/log/logger.hpp>
-#include <fc/string.hpp>
 //#include <utfcpp/utf8.h>
 #include <iostream>
 #include <fstream>
@@ -24,7 +23,7 @@ namespace fc { namespace json_relaxed
    variant variant_from_stream( T& in, uint32_t max_depth );
 
    template<typename T>
-   fc::string tokenFromStream( T& in )
+   std::string tokenFromStream( T& in )
    {
       fc::stringstream token;
       try
@@ -81,7 +80,7 @@ namespace fc { namespace json_relaxed
    }
 
    template<typename T, bool strict, bool allow_escape>
-   fc::string quoteStringFromStream( T& in )
+   std::string quoteStringFromStream( T& in )
    {
        fc::stringstream token;
        try
@@ -107,11 +106,11 @@ namespace fc { namespace json_relaxed
                try
                {
                   if( in.peek() != q )
-                     return fc::string();
+                     return std::string();
                }
                catch( const fc::eof_exception& e )
                {
-                  return fc::string();
+                  return std::string();
                }
 
                // triple quote processing
@@ -186,7 +185,7 @@ namespace fc { namespace json_relaxed
    }
 
    template<typename T, bool strict>
-   fc::string stringFromStream( T& in )
+   std::string stringFromStream( T& in )
    {
       try
       {
@@ -294,7 +293,7 @@ namespace fc { namespace json_relaxed
    };
    
    template<uint8_t base>
-   fc::variant parseInt( const fc::string& token, size_t start )
+   fc::variant parseInt( const std::string& token, size_t start )
    {
        static const CharValueTable ctbl;
        static const uint64_t INT64_MAX_PLUS_ONE = static_cast<uint64_t>(INT64_MAX) + 1;
@@ -336,7 +335,7 @@ namespace fc { namespace json_relaxed
    }
 
    template<bool strict, uint8_t base>
-   fc::variant maybeParseInt( const fc::string& token, size_t start )
+   fc::variant maybeParseInt( const std::string& token, size_t start )
    {
        try
        {
@@ -352,7 +351,7 @@ namespace fc { namespace json_relaxed
    }
 
    template<bool strict>
-   fc::variant parseNumberOrStr( const fc::string& token )
+   fc::variant parseNumberOrStr( const std::string& token )
    { try {
        //ilog( (token) ); 
        size_t i = 0, n = token.length();
@@ -588,7 +587,7 @@ namespace fc { namespace json_relaxed
    template<typename T, bool strict>
    variant numberFromStream( T& in )
    { try {
-       fc::string token = tokenFromStream(in);
+       std::string token = tokenFromStream(in);
        variant result = json_relaxed::parseNumberOrStr<strict>( token );
        if( strict && !(result.is_int64() || result.is_uint64() || result.is_double()) )
            FC_THROW_EXCEPTION( parse_error_exception, "expected: number" );
@@ -598,7 +597,7 @@ namespace fc { namespace json_relaxed
    template<typename T, bool strict>
    variant wordFromStream( T& in )
    {
-       fc::string token = tokenFromStream(in);
+       std::string token = tokenFromStream(in);
        
        FC_ASSERT( token.length() > 0 );
 

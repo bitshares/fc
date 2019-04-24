@@ -7,3 +7,8 @@
    // how many levels of nested objects are displayed in log messages
    #define FC_MAX_LOG_OBJECT_DEPTH 200
 #endif
+
+#ifndef FC_MAX_PREALLOC_SIZE
+// how many elements will be reserve()d when deserializing vectors
+#define FC_MAX_PREALLOC_SIZE (256UL)
+#endif

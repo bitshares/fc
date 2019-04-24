@@ -31,12 +31,6 @@
 	</Expand>
 </Type>
 
-<Type Name="fc::string">
-	<DisplayString>{my}</DisplayString>
-	<Expand>
-		<ExpandedItem>my</ExpandedItem>
-	</Expand>
-</Type>
 
 <Type Name="fc::optional&lt;*&gt;">
     <DisplayString Condition="!_valid">invalid</DisplayString>

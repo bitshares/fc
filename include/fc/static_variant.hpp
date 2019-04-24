@@ -226,7 +226,7 @@ template<int L,typename Visitor,typename Data,typename T, typename ... Types>
 static const fc::array<typename Visitor::result_type(*)(Visitor&,Data),L>
       init_wrappers( Visitor& v, Data d, typename Visitor::result_type(**funcs)(Visitor&,Data) = 0 )
 {
-   fc::array<typename Visitor::result_type(*)(Visitor&,Data),L> result;
+   fc::array<typename Visitor::result_type(*)(Visitor&,Data),L> result{};
    if( !funcs ) funcs = result.begin();
    *funcs++ = [] ( Visitor& v, Data d ) { return v( *reinterpret_cast<T*>( d ) ); };
    init_wrappers<L,Visitor,Data,Types...>( v, d, funcs );
@@ -244,7 +244,7 @@ template<int L,typename Visitor,typename Data,typename T, typename ... Types>
 static const fc::array<typename Visitor::result_type(*)(Visitor&,Data),L>
       init_const_wrappers( Visitor& v, Data d, typename Visitor::result_type(**funcs)(Visitor&,Data) = 0 )
 {
-   fc::array<typename Visitor::result_type(*)(Visitor&,Data),L> result;
+   fc::array<typename Visitor::result_type(*)(Visitor&,Data),L> result{};
    if( !funcs ) funcs = result.begin();
    *funcs++ = [] ( Visitor& v, Data d ) { return v( *reinterpret_cast<const T*>( d ) ); };
    init_const_wrappers<L,Visitor,Data,Types...>( v, d, funcs );
@@ -253,6 +253,9 @@ static const fc::array<typename Visitor::result_type(*)(Visitor&,Data),L>
 
 template<typename... Types>
 class static_variant {
+public:
+    using tag_type = int64_t;
+
 protected:
     static_assert(impl::type_info<Types...>::no_reference_types, "Reference types are not permitted in static_variant.");
     static_assert(impl::type_info<Types...>::no_duplicates, "static_variant type arguments contain duplicate types.");
@@ -260,7 +263,6 @@ protected:
     template<typename X>
     using type_in_typelist = typename std::enable_if<impl::position<X, Types...>::pos != -1, X>::type; // type is in typelist of static_variant.
 
-    using tag_type = int64_t;
     tag_type _tag;
     impl::dynamic_storage storage;
 

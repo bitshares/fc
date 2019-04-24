@@ -1,7 +1,6 @@
 #pragma once
 #include <fc/thread/future.hpp>
 #include <fc/thread/priority.hpp>
-#include <fc/aligned.hpp>
 #include <fc/fwd.hpp>
 
 namespace fc {
@@ -103,7 +102,7 @@ namespace fc {
       }
       virtual void cancel(const char* reason FC_CANCELATION_REASON_DEFAULT_ARG) override { task_base::cancel(reason); }
 
-      aligned<FunctorSize> _functor;
+      alignas(double) char _functor[FunctorSize];      
     private:
       ~task(){}
   };
@@ -123,7 +122,7 @@ namespace fc {
       }
       virtual void cancel(const char* reason FC_CANCELATION_REASON_DEFAULT_ARG) override { task_base::cancel(reason); }
 
-      aligned<FunctorSize> _functor;      
+      alignas(double) char _functor[FunctorSize];      
     private:
       ~task(){}
   };

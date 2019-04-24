@@ -221,7 +221,7 @@ static int cli_check_secret(const char *source)
  * @param prompt the prompt to display
  * @param line what the user typed
  */
-void cli::getline( const fc::string& prompt, fc::string& line)
+void cli::getline( const std::string& prompt, std::string& line)
 {
    // getting file descriptor for C++ streams is near impossible
    // so we just assume it's the same as the C stream...

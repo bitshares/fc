@@ -1,7 +1,6 @@
 #include <fc/log/console_appender.hpp>
 #include <fc/log/log_message.hpp>
 #include <fc/thread/unique_lock.hpp>
-#include <fc/string.hpp>
 #include <fc/variant.hpp>
 #include <fc/reflect/variant.hpp>
 #ifndef WIN32
@@ -114,7 +113,7 @@ namespace fc {
          line << std::setw( 20 ) << std::left << m.get_context().get_method().substr(p,20).c_str() <<" ";
       }
       line << "] ";
-      fc::string message = fc::format_string( m.get_format(), m.get_data(), my->cfg.max_object_depth );
+      std::string message = fc::format_string( m.get_format(), m.get_data(), my->cfg.max_object_depth );
       line << message;
 
       fc::unique_lock<boost::mutex> lock(log_mutex());

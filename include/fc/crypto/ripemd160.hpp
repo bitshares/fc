@@ -45,7 +45,7 @@ class ripemd160
         ripemd160 result();
 
       private:
-        struct      impl;
+        class            impl;
         fc::fwd<impl,96> my;
     };
 

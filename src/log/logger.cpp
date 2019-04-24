@@ -15,7 +15,7 @@ namespace fc {
       public:
          impl()
          :_parent(nullptr),_enabled(true),_additivity(false),_level(log_level::warn){}
-         fc::string       _name;
+         std::string       _name;
          logger           _parent;
          bool             _enabled;
          bool             _additivity;
@@ -42,7 +42,7 @@ namespace fc {
     :my(l.my){}
 
     logger::logger( logger&& l )
-    :my(fc::move(l.my)){}
+    :my(std::move(l.my)){}
 
     logger::~logger(){}
 
@@ -51,7 +51,7 @@ namespace fc {
        return *this;
     }
     logger& logger::operator=( logger&& l ){
-       fc_swap(my,l.my);
+       std::swap(my,l.my);
        return *this;
     }
     bool operator==( const logger& l, std::nullptr_t ) { return !l.my; }
@@ -71,8 +71,8 @@ namespace fc {
           my->_parent.log(m);
        }
     }
-    void logger::set_name( const fc::string& n ) { my->_name = n; }
-    const fc::string& logger::name()const { return my->_name; }
+    void logger::set_name( const std::string& n ) { my->_name = n; }
+    const std::string& logger::name()const { return my->_name; }
 
     extern bool do_default_config;
 
@@ -84,7 +84,7 @@ namespace fc {
       return *lm;
     }
 
-    logger logger::get( const fc::string& s ) {
+    logger logger::get( const std::string& s ) {
        static fc::spin_lock logger_spinlock;
        scoped_lock<spin_lock> lock(logger_spinlock);
        return get_logger_map()[s];

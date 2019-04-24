@@ -8,6 +8,7 @@
 #include <fc/variant_object.hpp>
 #include <fc/shared_ptr.hpp>
 #include <memory>
+#include <string>
 
 namespace fc
 {
@@ -65,19 +66,19 @@ namespace fc
         explicit log_context( const variant& v, uint32_t max_depth );
         variant to_variant( uint32_t max_depth )const;
 
-        string        get_file()const;
+        std::string   get_file()const;
         uint64_t      get_line_number()const;
-        string        get_method()const;
-        string        get_thread_name()const;
-        string        get_task_name()const;
-        string        get_host_name()const;
+        std::string   get_method()const;
+        std::string   get_thread_name()const;
+        std::string   get_task_name()const;
+        std::string   get_host_name()const;
         time_point    get_timestamp()const;
         log_level     get_log_level()const;
-        string        get_context()const;
+        std::string   get_context()const;
 
-        void          append_context( const fc::string& c );
+        void          append_context( const std::string& c );
 
-        string        to_string()const;
+        std::string   to_string()const;
       private:
         std::shared_ptr<detail::log_context_impl> my;
    };
@@ -116,10 +117,10 @@ namespace fc
          log_message( const variant& v, uint32_t max_depth );
          variant        to_variant(uint32_t max_depth)const;
 
-         string         get_message()const;
+         std::string    get_message()const;
 
          log_context    get_context()const;
-         string         get_format()const;
+         std::string    get_format()const;
          variant_object get_data()const;
 
       private:
@@ -147,7 +148,7 @@ FC_REFLECT_TYPENAME( fc::log_message );
  * @param LOG_LEVEL - a valid log_level::Enum name.
  */
 #define FC_LOG_CONTEXT(LOG_LEVEL) \
-   fc::log_context( fc::log_level::LOG_LEVEL, __FILE__, __LINE__, __func__ )
+   fc::log_context( fc::log_level::LOG_LEVEL, (const char*)__FILE__, __LINE__, (const char*)__func__ )
 
 /**
  * @def FC_LOG_MESSAGE(LOG_LEVEL,FORMAT,...)

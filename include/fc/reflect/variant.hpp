@@ -71,7 +71,7 @@ namespace fc
       {
          mutable_variant_object mvo;
          fc::reflector<T>::visit( to_variant_visitor<T>( mvo, v, max_depth ) );
-         vo = fc::move(mvo);
+         vo = std::move(mvo);
       }
       template<typename T>
       static inline void from_variant( const fc::variant& v, T& o, uint32_t max_depth )

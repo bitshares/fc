@@ -9,7 +9,7 @@ namespace fc {
                       variant args = variant()) :
         name(name),
         type(type),
-        args(fc::move(args)),
+        args(std::move(args)),
         enabled(true)
       {}
       string   name;
@@ -19,7 +19,7 @@ namespace fc {
    };
 
    struct logger_config {
-      logger_config(const fc::string& name = ""):name(name),enabled(true),additivity(false){}
+      logger_config(const std::string& name = ""):name(name),enabled(true),additivity(false){}
       string                           name;
       ostring                          parent;
       /// if not set, then parents level is used.
