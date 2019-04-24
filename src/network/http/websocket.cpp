@@ -130,13 +130,10 @@ namespace fc { namespace http {
       class websocket_connection_impl : public websocket_connection
       {
          public:
-            websocket_connection_impl( T con )
-            :_ws_connection(con){
-            }
+            websocket_connection_impl( T con, std::string host_header_key = std::string() )
+                  :_ws_connection(con), host_header_key(host_header_key) {}
 
-            ~websocket_connection_impl()
-            {
-            }
+            ~websocket_connection_impl() {}
 
             virtual void send_message( const std::string& message )override
             {
@@ -144,6 +141,7 @@ namespace fc { namespace http {
                auto ec = _ws_connection->send( message );
                FC_ASSERT( !ec, "websocket send failed: ${msg}", ("msg",ec.message() ) );
             }
+
             virtual void close( int64_t code, const std::string& reason  )override
             {
                _ws_connection->close(code,reason);
@@ -154,15 +152,19 @@ namespace fc { namespace http {
               return _ws_connection->get_request_header(key);
             }
 
-            virtual std::string get_host()override
+            virtual std::string get_host() override
             {
-               auto header = get_request_header("BS-Forwarded");
-               if (header.length() > 2)
-                  return header;
+               if (!host_header_key.empty())
+               {
+                  auto header = get_request_header(host_header_key);
+                  if (!header.empty())
+                     return header;
+               }
                return _ws_connection->get_host();
             }
-
+         private:
             T _ws_connection;
+            std::string host_header_key;
       };
 
       typedef websocketpp::lib::shared_ptr<boost::asio::ssl::context> context_ptr;
@@ -170,7 +172,7 @@ namespace fc { namespace http {
       class websocket_server_impl
       {
          public:
-            websocket_server_impl()
+            websocket_server_impl(std::string host_header_key)
             :_server_thread( fc::thread::current() )
             {
 
@@ -179,7 +181,8 @@ namespace fc { namespace http {
                _server.set_reuse_addr(true);
                _server.set_open_handler( [&]( connection_hdl hdl ){
                     _server_thread.async( [&](){
-                       auto new_con = std::make_shared<websocket_connection_impl<websocket_server_type::connection_ptr>>( _server.get_con_from_hdl(hdl) );
+                       auto new_con = std::make_shared<websocket_connection_impl<websocket_server_type::connection_ptr>>( 
+                              _server.get_con_from_hdl(hdl), host_header_key );
                        _on_connection( _connections[hdl] = new_con );
                     }).wait();
                });
@@ -204,7 +207,8 @@ namespace fc { namespace http {
 
                _server.set_http_handler( [&]( connection_hdl hdl ){
                     _server_thread.async( [&](){
-                       auto current_con = std::make_shared<websocket_connection_impl<websocket_server_type::connection_ptr>>( _server.get_con_from_hdl(hdl) );
+                       auto current_con = std::make_shared<websocket_connection_impl<websocket_server_type::connection_ptr>>( 
+                              _server.get_con_from_hdl(hdl), host_header_key );
                        _on_connection( current_con );
 
                        auto con = _server.get_con_from_hdl(hdl);
@@ -286,7 +290,7 @@ namespace fc { namespace http {
       class websocket_tls_server_impl
       {
          public:
-            websocket_tls_server_impl( const string& server_pem, const string& ssl_password )
+            websocket_tls_server_impl( const string& server_pem, const string& ssl_password, std::string host_header_key )
             :_server_thread( fc::thread::current() )
             {
                //if( server_pem.size() )
@@ -313,7 +317,8 @@ namespace fc { namespace http {
                _server.set_reuse_addr(true);
                _server.set_open_handler( [&]( connection_hdl hdl ){
                     _server_thread.async( [&](){
-                       auto new_con = std::make_shared<websocket_connection_impl<websocket_tls_server_type::connection_ptr>>( _server.get_con_from_hdl(hdl) );
+                       auto new_con = std::make_shared<websocket_connection_impl<websocket_tls_server_type::connection_ptr>>( 
+                              _server.get_con_from_hdl(hdl), host_header_key );
                        _on_connection( _connections[hdl] = new_con );
                     }).wait();
                });
@@ -331,7 +336,8 @@ namespace fc { namespace http {
                _server.set_http_handler( [&]( connection_hdl hdl ){
                     _server_thread.async( [&](){
 
-                       auto current_con = std::make_shared<websocket_connection_impl<websocket_tls_server_type::connection_ptr>>( _server.get_con_from_hdl(hdl) );
+                       auto current_con = std::make_shared<websocket_connection_impl<websocket_tls_server_type::connection_ptr>>( 
+                              _server.get_con_from_hdl(hdl), host_header_key );
                        try{
                           _on_connection( current_con );
 
@@ -387,18 +393,6 @@ namespace fc { namespace http {
             on_connection_handler       _on_connection;
             fc::promise<void>::ptr      _closed;
       };
-
-
-
-
-
-
-
-
-
-
-
-
 
       typedef websocketpp::client<asio_with_stub_log> websocket_client_type;
       typedef websocketpp::client<asio_tls_stub_log> websocket_tls_client_type;
@@ -585,7 +579,9 @@ namespace fc { namespace http {
 
    } // namespace detail
 
-   websocket_server::websocket_server():my( new detail::websocket_server_impl() ) {}
+   websocket_server::websocket_server(std::string host_header_key)
+         :my( new detail::websocket_server_impl(host_header_key) ) {}
+   
    websocket_server::~websocket_server(){}
 
    void websocket_server::on_connection( const on_connection_handler& handler )
@@ -606,10 +602,10 @@ namespace fc { namespace http {
       my->_server.start_accept();
    }
 
+   websocket_tls_server::websocket_tls_server( const string& server_pem, 
+         const string& ssl_password, std::string host_header_key )
+         :my( new detail::websocket_tls_server_impl(server_pem, ssl_password, host_header_key) ) {}
 
-
-
-   websocket_tls_server::websocket_tls_server( const string& server_pem, const string& ssl_password ):my( new detail::websocket_tls_server_impl(server_pem, ssl_password) ) {}
    websocket_tls_server::~websocket_tls_server(){}
 
    void websocket_tls_server::on_connection( const on_connection_handler& handler )

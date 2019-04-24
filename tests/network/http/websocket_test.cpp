@@ -37,7 +37,7 @@ BOOST_AUTO_TEST_CASE(websocket_test)
               server.listen( port );
               listen_ok = true;
            }
-           catch( std::exception )
+           catch( const std::exception& )
            {
               // if the port is busy, listen() will throw a std::exception, do nothing here.
            }

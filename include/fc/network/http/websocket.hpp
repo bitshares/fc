@@ -45,7 +45,7 @@ namespace fc { namespace http {
    class websocket_server
    {
       public:
-         websocket_server();
+         websocket_server(std::string host_header_key = std::string() );
          ~websocket_server();
 
          void on_connection( const on_connection_handler& handler);
@@ -63,7 +63,7 @@ namespace fc { namespace http {
    {
       public:
          websocket_tls_server( const std::string& server_pem = std::string(),
-                           const std::string& ssl_password = std::string());
+               const std::string& ssl_password = std::string(), std::string host_header_key = std::string() );
          ~websocket_tls_server();
 
          void on_connection( const on_connection_handler& handler);
