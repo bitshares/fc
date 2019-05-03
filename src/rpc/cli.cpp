@@ -9,6 +9,7 @@
 
 #ifdef HAVE_EDITLINE
 # include "editline.h"
+# define CONFIG_UNIQUE_HISTORY // don't store the new command to history if it is identical to the last command
 # ifdef WIN32
 #  include <io.h>
 # endif
