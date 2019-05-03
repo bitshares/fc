@@ -137,36 +137,52 @@ void cli::run()
  */
 static char *my_rl_complete(char *token, int *match)
 {
-   bool have_one = false;
-   std::string method_name;
-
-   auto& cmd = cli_commands();
+   const auto& cmds = cli_commands();
    const size_t partlen = strlen (token); /* Part of token */
 
-   for (const std::string& it : cmd)
+   std::vector<std::reference_wrapper<const std::string>> matched_cmds;
+   for( const std::string& it : cmds )
    {
-      if (it.compare(0, partlen, token) == 0)
+      if( it.compare(0, partlen, token) == 0 )
       {
-         if (have_one) {
-            // we can only have 1, but we found a second
-            return NULL;
-         }
-         else
-         {
-            method_name = it;
-            have_one = true;
-         }
+         matched_cmds.push_back( it );
       }
    }
 
-   if (have_one)
+   if( matched_cmds.size() == 0 )
+      return NULL;
+
+   const std::string& first_matched_cmd = matched_cmds[0];
+   if( matched_cmds.size() == 1 )
    {
       *match = 1;
-      method_name += " ";
-      return strdup (method_name.c_str() + partlen);
+      std::string matched_cmd = first_matched_cmd + " ";
+      return strdup( matched_cmd.c_str() + partlen );
    }
 
-   return NULL;
+   size_t first_cmd_len = first_matched_cmd.size();
+   size_t matched_len = partlen;
+   for( ; matched_len < first_cmd_len; ++matched_len )
+   {
+      char next_char = first_matched_cmd[matched_len];
+      bool end = false;
+      for( const std::string& s : matched_cmds )
+      {
+         if( s.size() <= matched_len || s[matched_len] != next_char )
+         {
+            end = true;
+            break;
+         }
+      }
+      if( end )
+         break;
+   }
+
+   if( matched_len == partlen )
+      return NULL;
+
+   std::string matched_cmd_part = first_matched_cmd.substr( partlen, matched_len - partlen );
+   return strdup( matched_cmd_part.c_str() );
 }
 
 /***
