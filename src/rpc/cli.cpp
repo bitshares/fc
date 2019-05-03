@@ -56,6 +56,11 @@ void cli::send_notice( uint64_t callback_id, variants args /* = variants() */ )
 void cli::start()
 {
    cli_commands() = get_method_names(0);
+
+#ifdef HAVE_EDITLINE
+el_hist_size = 256;
+#endif
+
    _run_complete = fc::async( [&](){ run(); } );
 }
 
