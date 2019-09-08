@@ -1,6 +1,7 @@
 #pragma once
 #include <boost/endian/buffers.hpp>
 #include <fc/fwd.hpp>
+#include <fc/io/raw_fwd.hpp>
 
 #include <functional>
 #include <string>
@@ -24,11 +25,11 @@ class sha1
 
     template<typename T>
     static sha1 hash( const T& t ) 
-    { 
+    {
       sha1::encoder e; 
-      e << t; 
+      fc::raw::pack(e, t); 
       return e.result(); 
-    } 
+    }
 
     class encoder 
     {
