@@ -1,79 +1,21 @@
 #include <fc/asio.hpp>
-#include <fc/thread/thread.hpp>
-#include <boost/thread.hpp>
 #include <fc/log/logger.hpp>
 #include <fc/exception/exception.hpp>
+#include <fc/thread/fibers.hpp>
 #include <boost/scope_exit.hpp>
+
 #include <algorithm>
+#include <functional>
 #include <thread>
 
 namespace fc {
   namespace asio {
     namespace detail {
 
-      read_write_handler::read_write_handler(const promise<size_t>::ptr& completion_promise) :
-        _completion_promise(completion_promise)
-      {
-        // assert(false); // to detect anywhere we're not passing in a shared buffer
-      }
-      void read_write_handler::operator()(const boost::system::error_code& ec, size_t bytes_transferred)
-      {
-        // assert(false); // to detect anywhere we're not passing in a shared buffer
-        if( !ec )
-          _completion_promise->set_value(bytes_transferred);
-        else if( ec == boost::asio::error::eof  )
-          _completion_promise->set_exception( fc::exception_ptr( new fc::eof_exception( FC_LOG_MESSAGE( error, "${message} ", ("message", boost::system::system_error(ec).what())) ) ) );
-        else
-          _completion_promise->set_exception( fc::exception_ptr( new fc::exception( FC_LOG_MESSAGE( error, "${message} ", ("message", boost::system::system_error(ec).what())) ) ) );
-      }
-      read_write_handler_with_buffer::read_write_handler_with_buffer(const promise<size_t>::ptr& completion_promise,
-                                                                     const std::shared_ptr<const char>& buffer) :
-        _completion_promise(completion_promise),
-        _buffer(buffer)
-      {}
-      void read_write_handler_with_buffer::operator()(const boost::system::error_code& ec, size_t bytes_transferred)
-      {
-        if( !ec )
-          _completion_promise->set_value(bytes_transferred);
-        else if( ec == boost::asio::error::eof  )
-          _completion_promise->set_exception( fc::exception_ptr( new fc::eof_exception( FC_LOG_MESSAGE( error, "${message} ", ("message", boost::system::system_error(ec).what())) ) ) );
-        else
-          _completion_promise->set_exception( fc::exception_ptr( new fc::exception( FC_LOG_MESSAGE( error, "${message} ", ("message", boost::system::system_error(ec).what())) ) ) );
-      }
-
-        void read_write_handler_ec( promise<size_t>* p, boost::system::error_code* oec, const boost::system::error_code& ec, size_t bytes_transferred ) {
-            p->set_value(bytes_transferred);
-            *oec = ec;
-        }
-        void error_handler( const promise<void>::ptr& p,
-                              const boost::system::error_code& ec ) {
-            if( !ec )
-              p->set_value();
-            else
-            {
-                if( ec == boost::asio::error::eof  )
-                {
-                  p->set_exception( fc::exception_ptr( new fc::eof_exception(
-                          FC_LOG_MESSAGE( error, "${message} ", ("message", boost::system::system_error(ec).what())) ) ) );
-                }
-                else
-                {
-                  p->set_exception( fc::exception_ptr( new fc::exception(
-                          FC_LOG_MESSAGE( error, "${message} ", ("message", boost::system::system_error(ec).what())) ) ) );
-                }
-            }
-        }
-
-        void error_handler_ec( promise<boost::system::error_code>* p,
-                              const boost::system::error_code& ec ) {
-            p->set_value(ec);
-        }
-
         template<typename EndpointType, typename IteratorType>
-        void resolve_handler(
-                             const typename promise<std::vector<EndpointType> >::ptr& p,
-                             const boost::system::error_code& ec,
-                             IteratorType itr) {
+        void resolve_handler( std::shared_ptr< boost::fibers::promise<std::vector<EndpointType> > > p,
+                              const boost::system::error_code& ec,
+                              IteratorType itr) {
             if( !ec ) {
                 std::vector<EndpointType> eps;
                 while( itr != IteratorType() ) {
@@ -83,7 +25,7 @@ namespace fc {
                 p->set_value( eps );
             } else {
                 p->set_exception(
-                    fc::exception_ptr( new fc::exception(
+                    std::make_exception_ptr( fc::exception(
                         FC_LOG_MESSAGE( error, "process exited with: ${message} ",
                                         ("message", boost::system::system_error(ec).what())) ) ) );
             }
@@ -119,21 +61,14 @@ namespace fc {
        {
           // the default was not set by the configuration. Determine a good
           // number of threads. Minimum of 8, maximum of hardware_concurrency
-          num_io_threads = std::max( boost::thread::hardware_concurrency(), 8U );
+          num_io_threads = std::max( std::thread::hardware_concurrency(), 8U );
        }
 
+       asio_threads.reserve( num_io_threads );
        for( uint16_t i = 0; i < num_io_threads; ++i )
        {
-          asio_threads.push_back( new boost::thread( [i,this]()
-                {
-                 fc::thread::current().set_name( "fc::asio worker #" + fc::to_string(i) );
-                 
-                 BOOST_SCOPE_EXIT(void)
-                 {
-                    fc::thread::cleanup();
-                 } 
-                 BOOST_SCOPE_EXIT_END
-
+          asio_threads.emplace_back( [i,this]() {
+             set_thread_name( "fc::asio worker #" + fc::to_string(i) );
                  while (!io->stopped())
                  {
                     try
@@ -153,7 +88,7 @@ namespace fc {
                        elog("Caught unhandled exception in asio service loop");
                     }
                  }
-                }) );
+          } );
        } // build thread loop
     } // end of constructor
 
@@ -164,15 +99,11 @@ namespace fc {
     {
        delete the_work;
        io->stop();
-       for( auto asio_thread : asio_threads )
+       for( auto& asio_thread : asio_threads )
        {
-          asio_thread->join();
+          asio_thread.join();
        }
        delete io;
-       for( auto asio_thread : asio_threads )
-       {
-          delete asio_thread;
-       }
     } // end of destructor
 
     /***
@@ -190,10 +121,13 @@ namespace fc {
         try
         {
           resolver res( fc::asio::default_io_service() );
-          promise<std::vector<boost::asio::ip::tcp::endpoint> >::ptr p = promise<std::vector<boost::asio::ip::tcp::endpoint> >::create("tcp::resolve completion");
+          std::shared_ptr< boost::fibers::promise<std::vector<boost::asio::ip::tcp::endpoint> > > p;
+          p = std::make_shared< boost::fibers::promise<std::vector<boost::asio::ip::tcp::endpoint> > >();
+          auto f = p->get_future();
           res.async_resolve( boost::asio::ip::tcp::resolver::query(hostname,port),
-                            boost::bind( detail::resolve_handler<boost::asio::ip::tcp::endpoint,resolver_iterator>, p, _1, _2 ) );
-          return p->wait();
+                             std::bind( detail::resolve_handler<boost::asio::ip::tcp::endpoint,resolver_iterator>,
+                                        p, std::placeholders::_1, std::placeholders::_2 ) );
+          return f.get();
         }
         FC_RETHROW_EXCEPTIONS(warn, "")
       }
@@ -204,10 +138,13 @@ namespace fc {
         try
         {
           resolver res( fc::asio::default_io_service() );
-          promise<std::vector<endpoint> >::ptr p = promise<std::vector<endpoint> >::create("udp::resolve completion");
+          std::shared_ptr< boost::fibers::promise<std::vector<endpoint> > > p;
+          p = std::make_shared< boost::fibers::promise<std::vector<endpoint> > >();
+          auto f = p->get_future();
           res.async_resolve( resolver::query(hostname,port),
-                              boost::bind( detail::resolve_handler<endpoint,resolver_iterator>, p, _1, _2 ) );
-          return p->wait();
+                             std::bind( detail::resolve_handler<endpoint,resolver_iterator>,
+                                        p, std::placeholders::_1, std::placeholders::_2 ) );
+          return f.get();
         }
         FC_RETHROW_EXCEPTIONS(warn, "")
       }

@@ -17,8 +17,8 @@
 #include <fc/reflect/variant.hpp>
 #include <fc/rpc/websocket_api.hpp>
 #include <fc/variant.hpp>
-#include <fc/thread/thread.hpp>
 #include <fc/asio.hpp>
+#include <fc/thread/async.hpp>
 
 #if WIN32
 #include <wincrypt.h>
@@ -230,30 +230,39 @@ namespace fc { namespace http {
       {
          public:
             websocket_server_impl()
-            :_server_thread( fc::thread::current() )
+            :_server_thread_id( std::this_thread::get_id() )
             {
 
                _server.clear_access_channels( websocketpp::log::alevel::all );
                _server.init_asio(&fc::asio::default_io_service());
                _server.set_reuse_addr(true);
-               _server.set_open_handler( [&]( connection_hdl hdl ){
-                    _server_thread.async( [&](){
+               _server.set_open_handler( [this]( connection_hdl hdl ){
+                    fc::async( [this,&hdl](){
                        auto new_con = std::make_shared<websocket_connection_impl<websocket_server_type::connection_ptr>>( _server.get_con_from_hdl(hdl) );
-                       _on_connection( _connections[hdl] = new_con );
-                    }).wait();
+                       std::unique_lock<boost::fibers::mutex> lock(_mtx);
+                       _connections[hdl] = new_con;
+                       lock.unlock();
+                       _on_connection( new_con );
+                    }, _server_thread_id ).wait();
                });
-               _server.set_message_handler( [&]( connection_hdl hdl, websocket_server_type::message_ptr msg ){
-                    _server_thread.async( [&](){
+               _server.set_message_handler( [this]( connection_hdl hdl, websocket_server_type::message_ptr msg ){
+                    fc::async( [this,&hdl,&msg](){
+                       std::unique_lock<boost::fibers::mutex> lock(_mtx);
                        auto current_con = _connections.find(hdl);
                        assert( current_con != _connections.end() );
                        wdump(("server")(msg->get_payload()));
                        auto payload = msg->get_payload();
                        std::shared_ptr<websocket_connection> con = current_con->second;
+                       lock.unlock();
                        ++_pending_messages;
-                       auto f = fc::async([this,con,payload](){ if( _pending_messages ) --_pending_messages; con->on_message( payload ); });
+                       auto f = fc::async([this,con,payload](){
+                          if( _pending_messages )
+                             --_pending_messages;
+                          con->on_message( payload );
+                       }, _server_thread_id );
                        if( _pending_messages > 100 ) 
                          f.wait();
-                    }).wait();
+                    }, _server_thread_id ).wait();
                });
 
                _server.set_socket_init_handler( [&](websocketpp::connection_hdl hdl, boost::asio::ip::tcp::socket& s ) {
@@ -261,8 +270,8 @@ namespace fc { namespace http {
                       s.lowest_layer().set_option(option);
                } );
 
-               _server.set_http_handler( [&]( connection_hdl hdl ){
-                    _server_thread.async( [&](){
+               _server.set_http_handler( [this]( connection_hdl hdl ){
+                    fc::async( [this,&hdl](){
                        auto current_con = std::make_shared<websocket_connection_impl<websocket_server_type::connection_ptr>>( _server.get_con_from_hdl(hdl) );
                        _on_connection( current_con );
 
@@ -278,12 +287,13 @@ namespace fc { namespace http {
                           con->set_status( websocketpp::http::status_code::value(response.status) );
                           con->send_http_response();
                           current_con->closed();
-                       }, "call on_http");
-                    }).wait();
+                       }, _server_thread_id, "call on_http");
+                    }, _server_thread_id ).wait();
                });
 
-               _server.set_close_handler( [&]( connection_hdl hdl ){
-                    _server_thread.async( [&](){
+               _server.set_close_handler( [this]( connection_hdl hdl ){
+                    fc::async( [this,&hdl](){
+                       std::unique_lock<boost::fibers::mutex> lock(_mtx);
                        if( _connections.find(hdl) != _connections.end() )
                        {
                           _connections[hdl]->closed();
@@ -293,15 +303,19 @@ namespace fc { namespace http {
                        {
                             wlog( "unknown connection closed" );
                        }
-                       if( _connections.empty() && _closed )
-                          _closed->set_value();
-                    }).wait();
+                       if( _connections.empty() )
+                       {
+                          _closed = true;
+                          cv.notify_all();
+                       }
+                    }, _server_thread_id ).wait();
                });
 
-               _server.set_fail_handler( [&]( connection_hdl hdl ){
+               _server.set_fail_handler( [this]( connection_hdl hdl ){
                     if( _server.is_listening() )
                     {
-                       _server_thread.async( [&](){
+                       fc::async( [this,&hdl](){
+                          std::unique_lock<boost::fibers::mutex> lock(_mtx);
                           if( _connections.find(hdl) != _connections.end() )
                           {
                              _connections[hdl]->closed();
@@ -311,53 +325,61 @@ namespace fc { namespace http {
                           {
                             wlog( "unknown connection failed" );
                           }
-                          if( _connections.empty() && _closed )
-                             _closed->set_value();
-                       }).wait();
+                          if( _connections.empty() )
+                          {
+                             _closed = true;
+                             cv.notify_all();
+                          }
+                       }, _server_thread_id ).wait();
                     }
                });
             }
             ~websocket_server_impl()
             {
+               std::unique_lock<boost::fibers::mutex> lock(_mtx);
                if( _server.is_listening() )
                   _server.stop_listening();
 
                if( _connections.size() )
-                  _closed = promise<void>::create();
+                  _closed = false;
 
                auto cpy_con = _connections;
                for( auto item : cpy_con )
                   _server.close( item.first, 0, "server exit" );
 
-               if( _closed ) _closed->wait();
+               if( cpy_con.size() )
+                  cv.wait( lock, [this] () { return _closed; } );
             }
 
             typedef std::map<connection_hdl, websocket_connection_ptr,std::owner_less<connection_hdl> > con_map;
 
             con_map                  _connections;
-            fc::thread&              _server_thread;
+            std::thread::id          _server_thread_id;
             websocket_server_type    _server;
             on_connection_handler    _on_connection;
-            fc::promise<void>::ptr   _closed;
             uint32_t                 _pending_messages = 0;
+
+            boost::fibers::mutex _mtx;
+            boost::fibers::condition_variable cv;
+            bool _closed = false;
       };
 
       class websocket_tls_server_impl
       {
          public:
             websocket_tls_server_impl( const string& server_pem, const string& ssl_password )
-            :_server_thread( fc::thread::current() )
+            :_server_thread_id( std::this_thread::get_id() )
             {
                //if( server_pem.size() )
                {
-                  _server.set_tls_init_handler( [=]( websocketpp::connection_hdl hdl ) -> context_ptr {
+                  _server.set_tls_init_handler( [this,server_pem,ssl_password]( websocketpp::connection_hdl hdl ) -> context_ptr {
                         context_ptr ctx = websocketpp::lib::make_shared<boost::asio::ssl::context>(boost::asio::ssl::context::tlsv1);
                         try {
                            ctx->set_options(boost::asio::ssl::context::default_workarounds |
                            boost::asio::ssl::context::no_sslv2 |
                            boost::asio::ssl::context::no_sslv3 |
                            boost::asio::ssl::context::single_dh_use);
-                           ctx->set_password_callback([=](std::size_t max_length, boost::asio::ssl::context::password_purpose){ return ssl_password;});
+                           ctx->set_password_callback([ssl_password](std::size_t max_length, boost::asio::ssl::context::password_purpose){ return ssl_password;});
                            ctx->use_certificate_chain_file(server_pem);
                            ctx->use_private_key_file(server_pem, boost::asio::ssl::context::pem);
                         } catch (std::exception& e) {
@@ -370,25 +392,29 @@ namespace fc { namespace http {
                _server.clear_access_channels( websocketpp::log::alevel::all );
                _server.init_asio(&fc::asio::default_io_service());
                _server.set_reuse_addr(true);
-               _server.set_open_handler( [&]( connection_hdl hdl ){
-                    _server_thread.async( [&](){
+               _server.set_open_handler( [this]( connection_hdl hdl ){
+                    fc::async( [this,&hdl](){
                        auto new_con = std::make_shared<websocket_connection_impl<websocket_tls_server_type::connection_ptr>>( _server.get_con_from_hdl(hdl) );
-                       _on_connection( _connections[hdl] = new_con );
-                    }).wait();
+                       std::unique_lock<boost::fibers::mutex> lock(_mtx);
+                       _connections[hdl] = new_con;
+                       lock.unlock();
+                       _on_connection( new_con );
+                    }, _server_thread_id ).wait();
                });
-               _server.set_message_handler( [&]( connection_hdl hdl, websocket_server_type::message_ptr msg ){
-                    _server_thread.async( [&](){
+               _server.set_message_handler( [this]( connection_hdl hdl, websocket_server_type::message_ptr msg ){
+                    fc::async( [this,&hdl,&msg](){
+                       std::unique_lock<boost::fibers::mutex> lock(_mtx);
                        auto current_con = _connections.find(hdl);
                        assert( current_con != _connections.end() );
                        auto received = msg->get_payload();
                        std::shared_ptr<websocket_connection> con = current_con->second;
-                       fc::async([con,received](){ con->on_message( received ); });
-                    }).wait();
+                       lock.unlock();
+                       fc::async( [con,received] () { con->on_message( received ); }, _server_thread_id );
+                    }, _server_thread_id ).wait();
                });
 
-               _server.set_http_handler( [&]( connection_hdl hdl ){
-                    _server_thread.async( [&](){
-
+               _server.set_http_handler( [this]( connection_hdl hdl ){
+                    fc::async( [this,&hdl](){
                        auto current_con = std::make_shared<websocket_connection_impl<websocket_tls_server_type::connection_ptr>>( _server.get_con_from_hdl(hdl) );
                        try{
                           _on_connection( current_con );
@@ -405,45 +431,68 @@ namespace fc { namespace http {
                        }
                        current_con->closed();
 
-                    }).wait();
+                    }, _server_thread_id ).wait();
                });
 
-               _server.set_close_handler( [&]( connection_hdl hdl ){
-                    _server_thread.async( [&](){
+               _server.set_close_handler( [this]( connection_hdl hdl ){
+                    fc::async( [this,&hdl](){
+                       std::unique_lock<boost::fibers::mutex> lock(_mtx);
                        _connections[hdl]->closed();
                        _connections.erase( hdl );
-                    }).wait();
+                       if( _connections.empty() )
+                       {
+                          _closed = true;
+                          cv.notify_all();
+                       }
+                    }, _server_thread_id ).wait();
                });
 
-               _server.set_fail_handler( [&]( connection_hdl hdl ){
+               _server.set_fail_handler( [this]( connection_hdl hdl ){
                     if( _server.is_listening() )
                     {
-                       _server_thread.async( [&](){
+                       fc::async( [this,&hdl](){
+                          std::unique_lock<boost::fibers::mutex> lock(_mtx);
                           if( _connections.find(hdl) != _connections.end() )
                           {
                              _connections[hdl]->closed();
                              _connections.erase( hdl );
                           }
-                       }).wait();
+                          if( _connections.empty() )
+                          {
+                             _closed = true;
+                             cv.notify_all();
+                          }
+                       }, _server_thread_id ).wait();
                     }
                });
             }
             ~websocket_tls_server_impl()
             {
+               std::unique_lock<boost::fibers::mutex> lock(_mtx);
                if( _server.is_listening() )
                   _server.stop_listening();
+
+               if( _connections.size() )
+                  _closed = false;
+
                auto cpy_con = _connections;
                for( auto item : cpy_con )
                   _server.close( item.first, 0, "server exit" );
+
+               if( cpy_con.size() )
+                  cv.wait( lock, [this] () { return _closed; } );
             }
 
             typedef std::map<connection_hdl, websocket_connection_ptr,std::owner_less<connection_hdl> > con_map;
 
             con_map                     _connections;
-            fc::thread&                 _server_thread;
+            std::thread::id             _server_thread_id;
             websocket_tls_server_type   _server;
             on_connection_handler       _on_connection;
-            fc::promise<void>::ptr      _closed;
+
+            boost::fibers::mutex _mtx;
+            boost::fibers::condition_variable cv;
+            bool _closed = false;
       };
 
 
@@ -470,55 +519,98 @@ namespace fc { namespace http {
       {
          public:
             generic_websocket_client_impl()
-            :_client_thread( fc::thread::current() )
+            :_client_thread_id( std::this_thread::get_id() )
             {
                 _client.clear_access_channels( websocketpp::log::alevel::all );
-                _client.set_message_handler( [&]( connection_hdl hdl,
+                _client.set_message_handler( [this]( connection_hdl hdl,
                                                   typename websocketpp::client<T>::message_ptr msg ){
-                   _client_thread.async( [&](){
+                   fc::async( [this,&msg](){
                         wdump((msg->get_payload()));
-                        //std::cerr<<"recv: "<<msg->get_payload()<<"\n";
-                        auto received = msg->get_payload();
-                        fc::async( [=](){
+                        fc::async( [this, received = msg->get_payload()](){
                            if( _connection )
-                               _connection->on_message(received);
+                              _connection->on_message(received);
                         });
-                   }).wait();
+                   }, _client_thread_id ).wait();
                 });
-                _client.set_close_handler( [=]( connection_hdl hdl ){
-                   _client_thread.async( [&](){ if( _connection ) {_connection->closed(); _connection.reset();} } ).wait();
-                   if( _closed ) _closed->set_value();
+                _client.set_close_handler( [this] ( connection_hdl hdl ) {
+                   fc::async( [this](){
+                      std::unique_lock<boost::fibers::mutex> lock(_mtx);
+                      if( _connection ) {
+                         _connection->closed();
+                         _connection.reset();
+                      }
+                      _connected = false;
+                      _error.reset();
+                      cv.notify_all();
+                   }, _client_thread_id ).wait();
                 });
-                _client.set_fail_handler( [=]( connection_hdl hdl ){
+                _client.set_fail_handler( [this]( connection_hdl hdl ){
                    auto con = _client.get_con_from_hdl(hdl);
                    auto message = con->get_ec().message();
                    if( _connection )
-                      _client_thread.async( [&](){ if( _connection ) _connection->closed(); _connection.reset(); } ).wait();
-                   if( _connected && !_connected->ready() )
-                       _connected->set_exception( exception_ptr( new FC_EXCEPTION( exception, "${message}", ("message",message)) ) );
-                   if( _closed )
-                       _closed->set_value();
+                      fc::async( [this] () {
+                         std::unique_lock<boost::fibers::mutex> lock(_mtx);
+                         if( _connection )
+                            _connection->closed();
+                         _connection.reset();
+                      }, _client_thread_id ).wait();
+                   std::unique_lock<boost::fibers::mutex> lock(_mtx);
+                   _error = std::make_shared<exception>( FC_LOG_MESSAGE( error, "${message}",
+                                                                         ("message",message) ) );
+                   _connected = false;
+                   cv.notify_all();
                 });
 
                 _client.init_asio( &fc::asio::default_io_service() );
             }
             virtual ~generic_websocket_client_impl()
             {
+               std::unique_lock<boost::fibers::mutex> lock(_mtx);
                if( _connection )
                {
                   _connection->close(0, "client closed");
                   _connection.reset();
                }
-               if( _closed )
-                  _closed->wait();
+               cv.wait( lock, [this] () { return !_connected; } );
             }
-            fc::promise<void>::ptr             _connected;
-            fc::promise<void>::ptr             _closed;
-            fc::thread&                        _client_thread;
+
+            template<typename C>
+            websocket_connection_ptr connect( const std::string& uri )
+            {
+               std::unique_lock<boost::fibers::mutex> lock(_mtx);
+               FC_ASSERT( !_connected, "Already connected!" );
+
+               _error.reset();
+               websocketpp::lib::error_code ec;
+               _uri = uri;
+               _client.set_open_handler( [this]( websocketpp::connection_hdl hdl ){
+                  _hdl = hdl;
+                  auto con = _client.get_con_from_hdl(hdl);
+                  _connection = std::make_shared<detail::websocket_connection_impl<C>>( con );
+                  std::unique_lock<boost::fibers::mutex> lock(_mtx);
+                  _connected = true;
+                  cv.notify_all();
+               });
+
+               auto con = _client.get_connection( uri, ec );
+
+               if( ec ) FC_ASSERT( !ec, "error: ${e}", ("e",ec.message()) );
+
+               _client.connect(con);
+               cv.wait( lock, [this] () { return _connected || _error; } );
+               if( _error ) throw *_error;
+               return _connection;
+            }
+            std::thread::id                    _client_thread_id;
             websocketpp::client<T>             _client;
             websocket_connection_ptr           _connection;
             std::string                        _uri;
             fc::optional<connection_hdl>       _hdl;
+
+            boost::fibers::mutex _mtx;
+            boost::fibers::condition_variable cv;
+            bool _connected = false;
+            exception_ptr _error;
       };
 
       class websocket_client_impl : public generic_websocket_client_impl<asio_with_stub_log>
@@ -534,23 +626,7 @@ namespace fc { namespace http {
                 // "_none" disables cert checking (potentially insecure!)
                 // "_default" uses default CA's provided by OS
 
-                //
-                // We need ca_filename to be copied into the closure, as the referenced object might be destroyed by the caller by the time
-                // tls_init_handler() is called.  According to [1], capture-by-value results in the desired behavior (i.e. creation of
-                // a copy which is stored in the closure) on standards compliant compilers, but some compilers on some optimization levels
-                // are buggy and are not standards compliant in this situation.  Also, keep in mind this is the opinion of a single forum
-                // poster and might be wrong.
-                //
-                // To be safe, the following line explicitly creates a non-reference string which is captured by value, which should have the
-                // correct behavior on all compilers.
-                //
-                // [1] http://www.cplusplus.com/forum/general/142165/
-                // [2] http://stackoverflow.com/questions/21443023/capturing-a-reference-by-reference-in-a-c11-lambda
-                //
-
-                std::string ca_filename_copy = ca_filename;
-
-                _client.set_tls_init_handler( [=](websocketpp::connection_hdl) {
+                _client.set_tls_init_handler( [this, ca_filename](websocketpp::connection_hdl) {
                    context_ptr ctx = websocketpp::lib::make_shared<boost::asio::ssl::context>(boost::asio::ssl::context::tlsv1);
                    try {
                       ctx->set_options(boost::asio::ssl::context::default_workarounds |
@@ -558,7 +634,7 @@ namespace fc { namespace http {
                       boost::asio::ssl::context::no_sslv3 |
                       boost::asio::ssl::context::single_dh_use);
 
-                      setup_peer_verify( ctx, ca_filename_copy );
+                      setup_peer_verify( ctx, ca_filename );
                    } catch (std::exception& e) {
                       edump((e.what()));
                       std::cout << e.what() << std::endl;
@@ -659,12 +735,6 @@ namespace fc { namespace http {
       my->_server.start_accept();
    }
 
-
-   websocket_tls_client::websocket_tls_client( const std::string& ca_filename ):my( new detail::websocket_tls_client_impl( ca_filename ) ) {}
-   websocket_tls_client::~websocket_tls_client(){ }
-
-
-
    websocket_client::websocket_client( const std::string& ca_filename ):my( new detail::websocket_client_impl() ),smy(new detail::websocket_tls_client_impl( ca_filename )) {}
    websocket_client::~websocket_client(){ }
 
@@ -674,27 +744,7 @@ namespace fc { namespace http {
           return secure_connect(uri);
        FC_ASSERT( uri.substr(0,3) == "ws:" );
 
-       // wlog( "connecting to ${uri}", ("uri",uri));
-       websocketpp::lib::error_code ec;
-
-       my->_uri = uri;
-       my->_connected = promise<void>::create("websocket::connect");
-
-       my->_client.set_open_handler( [=]( websocketpp::connection_hdl hdl ){
-          my->_hdl = hdl;
-          auto con =  my->_client.get_con_from_hdl(hdl);
-          my->_connection = std::make_shared<detail::websocket_connection_impl<detail::websocket_client_connection_type>>( con );
-          my->_closed = promise<void>::create("websocket::closed");
-          my->_connected->set_value();
-       });
-
-       auto con = my->_client.get_connection( uri, ec );
-
-       if( ec ) FC_ASSERT( !ec, "error: ${e}", ("e",ec.message()) );
-
-       my->_client.connect(con);
-       my->_connected->wait();
-       return my->_connection;
+       return my->connect<detail::websocket_client_connection_type>( uri );
    } FC_CAPTURE_AND_RETHROW( (uri) ) }
 
    websocket_connection_ptr websocket_client::secure_connect( const std::string& uri )
@@ -702,26 +752,9 @@ namespace fc { namespace http {
        if( uri.substr(0,3) == "ws:" )
           return connect(uri);
        FC_ASSERT( uri.substr(0,4) == "wss:" );
-       // wlog( "connecting to ${uri}", ("uri",uri));
-       websocketpp::lib::error_code ec;
 
-       smy->_uri = uri;
-       smy->_connected = promise<void>::create("websocket::connect");
-
-       smy->_client.set_open_handler( [=]( websocketpp::connection_hdl hdl ){
-          auto con =  smy->_client.get_con_from_hdl(hdl);
-          smy->_connection = std::make_shared<detail::websocket_connection_impl<detail::websocket_tls_client_connection_type>>( con );
-          smy->_closed = promise<void>::create("websocket::closed");
-          smy->_connected->set_value();
-       });
-
-       auto con = smy->_client.get_connection( uri, ec );
-       if( ec )
-          FC_ASSERT( !ec, "error: ${e}", ("e",ec.message()) );
-       smy->_client.connect(con);
-       smy->_connected->wait();
-       return smy->_connection;
-       } FC_CAPTURE_AND_RETHROW( (uri) ) }
+       return smy->connect<detail::websocket_tls_client_connection_type>( uri );
+   } FC_CAPTURE_AND_RETHROW( (uri) ) }
 
    void websocket_client::close()
    {
@@ -732,32 +765,8 @@ namespace fc { namespace http {
    void websocket_client::synchronous_close()
    {
        close();
-       if (my->_closed)
-          my->_closed->wait();
+       std::unique_lock<boost::fibers::mutex> lock(my->_mtx);
+       my->cv.wait( lock, [this] () { return !my->_connected; } );
    }
-
-   websocket_connection_ptr websocket_tls_client::connect( const std::string& uri )
-   { try {
-       // wlog( "connecting to ${uri}", ("uri",uri));
-       websocketpp::lib::error_code ec;
-
-       my->_connected = promise<void>::create("websocket::connect");
-
-       my->_client.set_open_handler( [=]( websocketpp::connection_hdl hdl ){
-          auto con =  my->_client.get_con_from_hdl(hdl);
-          my->_connection = std::make_shared<detail::websocket_connection_impl<detail::websocket_tls_client_connection_type>>( con );
-          my->_closed = promise<void>::create("websocket::closed");
-          my->_connected->set_value();
-       });
-
-       auto con = my->_client.get_connection( uri, ec );
-       if( ec )
-       {
-          FC_ASSERT( !ec, "error: ${e}", ("e",ec.message()) );
-       }
-       my->_client.connect(con);
-       my->_connected->wait();
-       return my->_connection;
-   } FC_CAPTURE_AND_RETHROW( (uri) ) }
 
 } } // fc::http

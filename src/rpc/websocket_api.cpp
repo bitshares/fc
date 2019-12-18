@@ -92,7 +92,7 @@ variant websocket_api_connection::send_call(
    _connection->send_message( fc::json::to_string( fc::variant( request, _max_conversion_depth ),
                                                    fc::json::stringify_large_ints_and_doubles,
                                                    _max_conversion_depth ) );
-   return _rpc_state.wait_for_response( *request.id );
+   return request.done.get();
 }
 
 variant websocket_api_connection::send_callback(
@@ -106,7 +106,7 @@ variant websocket_api_connection::send_callback(
    _connection->send_message( fc::json::to_string( fc::variant( request, _max_conversion_depth ),
                                                    fc::json::stringify_large_ints_and_doubles,
                                                    _max_conversion_depth ) );
-   return _rpc_state.wait_for_response( *request.id );
+   return request.done.get();
 }
 
 void websocket_api_connection::send_notice(

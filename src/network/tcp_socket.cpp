@@ -40,49 +40,57 @@ namespace fc {
           }
           catch( ... )
           {}
-        if( _read_in_progress.valid() )
-          try 
-          { 
-            _read_in_progress.wait();
-          }
-          catch ( ... )
-          {
-          }
-        if( _write_in_progress.valid() )
-          try 
-          { 
-            _write_in_progress.wait();
-          } 
-          catch ( ... )
-          {
-          }
+        std::unique_lock<boost::fibers::mutex> lock( mtx );
+        sema.wait( lock, [this] () { return users.load() == 0; } );
       }
       virtual size_t readsome(boost::asio::ip::tcp::socket& socket, char* buffer, size_t length) override;
       virtual size_t readsome(boost::asio::ip::tcp::socket& socket, const std::shared_ptr<char>& buffer, size_t length, size_t offset) override;
       virtual size_t writesome(boost::asio::ip::tcp::socket& socket, const char* buffer, size_t length) override;
       virtual size_t writesome(boost::asio::ip::tcp::socket& socket, const std::shared_ptr<const char>& buffer, size_t length, size_t offset) override;
 
-      fc::future<size_t> _write_in_progress;
-      fc::future<size_t> _read_in_progress;
+      std::atomic<uint32_t> users{0};
+      boost::fibers::condition_variable sema;
+      boost::fibers::mutex mtx;
       boost::asio::ip::tcp::socket _sock;
       tcp_socket_io_hooks* _io_hooks;
+
+      class use_guard
+      {
+         tcp_socket::impl& socket;
+
+      public:
+         use_guard( tcp_socket::impl& _sock ) : socket( _sock )
+         {
+            std::unique_lock<boost::fibers::mutex> lock( socket.mtx );
+            socket.users++;
+         }
+         ~use_guard()
+         {
+            std::unique_lock<boost::fibers::mutex> lock( socket.mtx );
+            if( socket.users-- == 1 ) socket.sema.notify_all();
+         }
+      };
   };
 
-  size_t tcp_socket::impl::readsome(boost::asio::ip::tcp::socket& socket, char* buffer, size_t length)
-  {
-    return (_read_in_progress = fc::asio::read_some(socket, buffer, length)).wait();
-  }
+   size_t tcp_socket::impl::readsome(boost::asio::ip::tcp::socket& socket, char* buffer, size_t length)
+   {
+      use_guard( *this );
+      return fc::asio::read_some(socket, buffer, length);
+   }
   size_t tcp_socket::impl::readsome(boost::asio::ip::tcp::socket& socket, const std::shared_ptr<char>& buffer, size_t length, size_t offset)
   {
-    return (_read_in_progress = fc::asio::read_some(socket, buffer, length, offset)).wait();
+     use_guard( *this );
+     return fc::asio::read_some(socket, buffer, length, offset);
   }
   size_t tcp_socket::impl::writesome(boost::asio::ip::tcp::socket& socket, const char* buffer, size_t length)
   {
-    return (_write_in_progress = fc::asio::write_some(socket, buffer, length)).wait();
+     use_guard( *this );
+     return fc::asio::write_some(socket, buffer, length);
   }
   size_t tcp_socket::impl::writesome(boost::asio::ip::tcp::socket& socket, const std::shared_ptr<const char>& buffer, size_t length, size_t offset)
   {
-    return (_write_in_progress = fc::asio::write_some(socket, buffer, length, offset)).wait();
+     use_guard( *this );
+     return fc::asio::write_some(socket, buffer, length, offset);
   }
 
 
@@ -95,7 +103,7 @@ namespace fc {
     return my->_sock.is_open();
   }
 
-  tcp_socket::tcp_socket(){};
+  tcp_socket::tcp_socket() : my( std::make_unique<impl>() ) {};
 
   tcp_socket::~tcp_socket() {}
 

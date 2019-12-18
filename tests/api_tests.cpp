@@ -5,6 +5,9 @@
 #include <fc/log/logger.hpp>
 #include <fc/rpc/api_connection.hpp>
 #include <fc/rpc/websocket_api.hpp>
+#include <fc/thread/fibers.hpp>
+
+#include "thread/worker_thread.hxx"
 
 namespace fc { namespace test {
 
@@ -66,11 +69,12 @@ using namespace fc::rpc;
 BOOST_AUTO_TEST_SUITE(api_tests)
 
 BOOST_AUTO_TEST_CASE(login_test) {
+   fc::initialize_fibers();
    try {
       fc::api<fc::test::calculator> calc_api( std::make_shared<fc::test::some_calculator>() );
 
       auto server = std::make_shared<fc::http::websocket_server>();
-      server->on_connection([&]( const websocket_connection_ptr& c ){
+      server->on_connection([&calc_api]( const websocket_connection_ptr& c ){
                auto wsc = std::make_shared<websocket_api_connection>(c, MAX_DEPTH);
                auto login = std::make_shared<fc::test::login_api>();
                login->calc = calc_api;
@@ -93,16 +97,18 @@ BOOST_AUTO_TEST_CASE(login_test) {
       BOOST_CHECK_EQUAL(remote_calc->add( 4, 5 ), 9);
       BOOST_CHECK(remote_triggered);
 
-      client->synchronous_close();
-      server->close();
-      fc::usleep(fc::milliseconds(50));
-      client.reset();
+      fc::test::sync_point syncer;
+      con->closed.connect( [&syncer] () { syncer.set(); } );
+
       server.reset();
+
+      syncer.wait();
    } FC_LOG_AND_RETHROW()
 }
 
 BOOST_AUTO_TEST_CASE(optionals_test) {
    try {
+      fc::initialize_fibers();
       auto optionals = std::make_shared<fc::test::optionals_api>();
       fc::api<fc::test::optionals_api> oapi(optionals);
       BOOST_CHECK_EQUAL(oapi->foo("a"), "[\"a\",null,null]");
@@ -117,7 +123,7 @@ BOOST_AUTO_TEST_CASE(optionals_test) {
       BOOST_CHECK_EQUAL(oapi->bar("a", {}, "c"), "[\"a\",null,\"c\"]");
 
       auto server = std::make_shared<fc::http::websocket_server>();
-      server->on_connection([&]( const websocket_connection_ptr& c ){
+      server->on_connection([&optionals]( const websocket_connection_ptr& c ){
                auto wsc = std::make_shared<websocket_api_connection>(c, MAX_DEPTH);
                wsc->register_api(fc::api<fc::test::optionals_api>(optionals));
                c->set_session_data( wsc );
@@ -143,36 +149,43 @@ BOOST_AUTO_TEST_CASE(optionals_test) {
       BOOST_CHECK_EQUAL(remote_optionals->bar("a", "b", "c"), "[\"a\",\"b\",\"c\"]");
       BOOST_CHECK_EQUAL(remote_optionals->bar("a", {}, "c"), "[\"a\",null,\"c\"]");
 
+      fc::test::sync_point syncer2;
       auto client2 = std::make_shared<fc::http::websocket_client>();
       auto con2  = client2->connect( "ws://localhost:" + std::to_string(listen_port) );
       std::string response;
-      con2->on_message_handler([&response](const std::string& s){
-                    response = s;
-                });
+      con2->on_message_handler([&response,&syncer2](const std::string& s){
+         response = s;
+         syncer2.set();
+      });
 
       con2->send_message( "{\"id\":1,\"method\":\"call\",\"params\":[0,\"bar\",[\"a\",\"b\",\"c\"]]}" );
-      fc::usleep(fc::milliseconds(50));
+      syncer2.wait();
       BOOST_CHECK_EQUAL( response, "{\"id\":1,\"result\":\"[\\\"a\\\",\\\"b\\\",\\\"c\\\"]\"}" );
 
+      syncer2.reset();
       con2->send_message( "{\"id\":2,\"method\":\"call\",\"params\":[0,\"bar\",[\"a\",\"b\"]]}" );
-      fc::usleep(fc::milliseconds(50));
+      syncer2.wait();
       BOOST_CHECK_EQUAL( response, "{\"id\":2,\"result\":\"[\\\"a\\\",\\\"b\\\",null]\"}" );
 
+      syncer2.reset();
       con2->send_message( "{\"id\":3,\"method\":\"call\",\"params\":[0,\"bar\",[\"a\"]]}" );
-      fc::usleep(fc::milliseconds(50));
+      syncer2.wait();
       BOOST_CHECK_EQUAL( response, "{\"id\":3,\"result\":\"[\\\"a\\\",null,null]\"}" );
 
+      syncer2.reset();
       con2->send_message( "{\"id\":4,\"method\":\"call\",\"params\":[0,\"bar\",[]]}" );
-      fc::usleep(fc::milliseconds(50));
+      syncer2.wait();
       BOOST_CHECK_EQUAL( response, "{\"id\":4,\"result\":\"[null,null,null]\"}" );
 
-      server->stop_listening();
+      fc::test::sync_point syncer;
+      con->closed.connect( [&syncer] () { syncer.set(); } );
+      syncer2.reset();
+      con2->closed.connect( [&syncer2] () { syncer2.set(); } );
 
-      client->synchronous_close();
-      server->close();
-      fc::usleep(fc::milliseconds(50));
-      client.reset();
       server.reset();
+
+      syncer.wait();
+      syncer2.wait();
    } FC_LOG_AND_RETHROW()
 }
 

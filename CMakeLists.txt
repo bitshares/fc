@@ -39,7 +39,8 @@ if(CMAKE_SIZEOF_VOID_P EQUAL 8)
 endif()
 
 SET(BOOST_COMPONENTS)
-LIST(APPEND BOOST_COMPONENTS coroutine thread date_time filesystem system program_options chrono unit_test_framework context iostreams regex)
+LIST(APPEND BOOST_COMPONENTS coroutine thread date_time filesystem system program_options chrono
+            unit_test_framework context iostreams regex fiber)
 # boost::endian is also required, but FindBoost can't handle header-only libs
 SET( Boost_USE_STATIC_LIBS ON CACHE STRING "ON or OFF" )
 
@@ -163,15 +164,8 @@ set( fc_sources
      src/exception.cpp
      src/variant_object.cpp
      src/static_variant.cpp
-     src/thread/thread.cpp
-     src/thread/thread_specific.cpp
-     src/thread/future.cpp
-     src/thread/task.cpp
-     src/thread/spin_lock.cpp
-     src/thread/spin_yield_lock.cpp
-     src/thread/mutex.cpp
+     src/thread/fibers.cpp
      src/thread/parallel.cpp
-     src/thread/non_preemptable_scope_check.cpp
      src/asio.cpp
      src/string.cpp
      src/stacktrace.cpp
@@ -184,6 +178,7 @@ set( fc_sources
      src/io/sstream.cpp
      src/io/json.cpp
      src/io/varint.cpp
+     src/io/stdio.cpp
      src/filesystem.cpp
      src/interprocess/signals.cpp
      src/interprocess/file_mapping.cpp
@@ -305,6 +300,8 @@ else()
   MESSAGE( STATUS "zlib not found" )
   set( ZLIB_LIBRARIES "" )
 endif( ZLIB_FOUND )
+
+target_include_directories(fc PUBLIC vendor)
 
 # This will become unnecessary once we update to websocketpp which fixes upstream issue #395
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWEBSOCKETPP_STRICT_MASKING")

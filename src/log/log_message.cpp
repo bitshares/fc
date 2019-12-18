@@ -2,11 +2,10 @@
 #include <fc/exception/exception.hpp>
 #include <fc/variant.hpp>
 #include <fc/time.hpp>
-#include <fc/thread/thread.hpp>
-#include <fc/thread/task.hpp>
 #include <fc/filesystem.hpp>
 #include <fc/io/stdio.hpp>
 #include <fc/io/json.hpp>
+#include <fc/thread/fibers.hpp>
 
 namespace fc
 {
@@ -53,9 +52,8 @@ namespace fc
       my->line        = line;
       my->method      = method;
       my->timestamp   = time_point::now();
-      my->thread_name = fc::thread::current().name();
-      const char* current_task_desc = fc::thread::current().current_task_desc();
-      my->task_name   = current_task_desc ? current_task_desc : "?unnamed?";
+      my->thread_name = fc::get_thread_name();
+      my->task_name   = fc::get_fiber_name();
    }
 
    log_context::log_context( const variant& v, uint32_t max_depth )
@@ -217,4 +215,3 @@ namespace fc
 
 
 } // fc
-

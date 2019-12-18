@@ -95,15 +95,5 @@ namespace fc { namespace http {
          std::unique_ptr<detail::websocket_client_impl> my;
          std::unique_ptr<detail::websocket_tls_client_impl> smy;
    };
-   class websocket_tls_client
-   {
-      public:
-         websocket_tls_client( const std::string& ca_filename = "_default" );
-         ~websocket_tls_client();
-
-         websocket_connection_ptr connect( const std::string& uri );
-      private:
-         std::unique_ptr<detail::websocket_tls_client_impl> my;
-   };
 
 } }

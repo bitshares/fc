@@ -11,9 +11,6 @@
 #pragma warning(pop) 
 #endif 
 
-#include <fc/thread/future.hpp>
-#include <fc/thread/thread.hpp>
-
 namespace fc {
 #if !defined(BOOST_NO_TEMPLATE_ALIASES) 
    template<typename T>
@@ -34,16 +31,4 @@ namespace fc {
     };
 #endif
 
-   template<typename T>
-   inline T wait( boost::signals2::signal<void(T)>& sig, const microseconds& timeout_us=microseconds::maximum() ) {
-     typename promise<T>::ptr p = promise<T>::create("fc::signal::wait");
-     boost::signals2::scoped_connection c( sig.connect( [=]( T t ) { p->set_value(t); } )); 
-     return p->wait( timeout_us ); 
-   }
-
-   inline void wait( boost::signals2::signal<void()>& sig, const microseconds& timeout_us=microseconds::maximum() ) {
-     promise<void>::ptr p = promise<void>::create("fc::signal::wait");
-     boost::signals2::scoped_connection c( sig.connect( [=]() { p->set_value(); } )); 
-     p->wait( timeout_us ); 
-   }
 } 

@@ -1,13 +1,12 @@
-#include <fc/log/logger.hpp>
-#include <fc/log/log_message.hpp>
-#include <fc/thread/thread.hpp>
-#include <fc/thread/spin_lock.hpp>
-#include <fc/thread/scoped_lock.hpp>
 #include <fc/log/appender.hpp>
-#include <fc/filesystem.hpp>
-#include <unordered_map>
-#include <string>
+#include <fc/log/logger.hpp>
 #include <fc/log/logger_config.hpp>
+#include <fc/log/log_message.hpp>
+#include <fc/filesystem.hpp>
+
+#include <mutex>
+#include <string>
+#include <unordered_map>
 
 namespace fc {
 
@@ -85,8 +84,8 @@ namespace fc {
     }
 
     logger logger::get( const std::string& s ) {
-       static fc::spin_lock logger_spinlock;
-       scoped_lock<spin_lock> lock(logger_spinlock);
+       static std::mutex logger_lock;
+       std::unique_lock<std::mutex> lock(logger_lock);
        return get_logger_map()[s];
     }
 

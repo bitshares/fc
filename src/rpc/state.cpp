@@ -1,5 +1,5 @@
+#include <fc/exception/exception.hpp>
 #include <fc/rpc/state.hpp>
-#include <fc/thread/thread.hpp>
 #include <fc/reflect/variant.hpp>
 
 namespace fc { namespace rpc {
@@ -33,32 +33,26 @@ void  state::handle_reply( const response& response )
    auto await = _awaiting.find( *response.id );
    FC_ASSERT( await != _awaiting.end(), "Unknown Response ID: ${id}", ("id",response.id)("response",response) );
    if( response.result ) 
-      await->second->set_value( *response.result );
+      await->second.set_value( *response.result );
    else if( response.error )
-   {
-      await->second->set_exception( exception_ptr(new FC_EXCEPTION( exception, "${error}", ("error",response.error->message)("data",response) ) ) );
-   }
+      await->second.set_exception( std::make_exception_ptr( FC_EXCEPTION( exception, "${error}", ("error",response.error->message)("data",response) ) ) );
    else
-      await->second->set_value( fc::variant() );
+      await->second.set_value( fc::variant() );
    _awaiting.erase(await);
 }
 
 request state::start_remote_call( const string& method_name, variants args )
 {
-   request request{ _next_id++, method_name, std::move(args) };
-   _awaiting[*request.id] = fc::promise<variant>::create("json_connection::async_call");
+   boost::fibers::promise<variant> prom;
+   request request{ _next_id++, method_name, std::move(args), prom.get_future() };
+   _awaiting[*request.id] = std::move( prom );
    return request;
 }
-variant state::wait_for_response( const variant& request_id )
-{
-   auto itr = _awaiting.find(request_id);
-   FC_ASSERT( itr != _awaiting.end() );
-   return fc::future<variant>( itr->second ).wait();
-}
+
 void state::close()
 {
-   for( auto item : _awaiting )
-      item.second->set_exception( fc::exception_ptr(new FC_EXCEPTION( eof_exception, "connection closed" )) );
+   for( auto& item : _awaiting )
+      item.second.set_exception( std::make_exception_ptr( FC_EXCEPTION( eof_exception, "connection closed" )) );
    _awaiting.clear();
 }
 void state::on_unhandled( const std::function<variant(const string&, const variants&)>& unhandled )

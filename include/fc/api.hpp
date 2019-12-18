@@ -1,8 +1,11 @@
 #pragma once 
-#include <fc/thread/future.hpp>
 #include <functional>
+
 #include <boost/any.hpp>
 #include <boost/config.hpp>
+
+#include <fc/exception/exception.hpp>
+#include <fc/optional.hpp>
 
 // ms visual c++ (as of 2013) doesn't accept the standard syntax for calling a 
 // templated member function (foo->template bar();)

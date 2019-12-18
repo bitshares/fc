@@ -6,9 +6,11 @@
 
 #include <fc/stacktrace.hpp>
 #include <fc/static_variant.hpp>
-#include <fc/thread/thread.hpp>
+#include <fc/thread/async.hpp>
 
 #include <iostream>
+
+#include "thread/worker_thread.hxx"
 
 BOOST_AUTO_TEST_SUITE(fc_stacktrace)
 
@@ -28,16 +30,16 @@ BOOST_AUTO_TEST_CASE(stacktrace_test)
 
 BOOST_AUTO_TEST_CASE(threaded_stacktrace_test)
 {
-   fc::thread test_thread("a_thread");
-   std::string results = test_thread.async(
+   fc::test::worker_thread test_thread;
+   std::string results = fc::async(
          [] ()->std::string {
                // cause a pause
                for(int i = 0; i < 10000; i++);
                std::stringstream ss;
                fc::print_stacktrace(ss);
                return ss.str();
-            }
-         ).wait();
+            }, test_thread.id()
+         ).get();
 #if BOOST_VERSION / 100 >= 1065 && !defined(__APPLE__)
    BOOST_CHECK(!results.empty());
    BOOST_CHECK(results.find("fc::print_stacktrace") != std::string::npos);

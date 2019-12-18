@@ -24,7 +24,7 @@ namespace fc {
   }
 
   udp_socket::udp_socket()
-  :my( new impl() ) 
+  :my( std::make_shared<impl>() ) 
   {
   }
 
@@ -56,11 +56,15 @@ namespace fc {
         throw;
     }
 
-    promise<size_t>::ptr completion_promise = promise<size_t>::create("udp_socket::send_to");
-    my->_sock.async_send_to( boost::asio::buffer(buffer, length), to_asio_ep(to), 
-                             asio::detail::read_write_handler(completion_promise) );
-
-    return completion_promise->wait();
+    boost::system::error_code ec;
+    std::size_t rlen = my->_sock.async_send_to( boost::asio::buffer(buffer, length), to_asio_ep(to), 
+                                                boost::fibers::asio::yield_t()[ec] );
+    if ( ec == boost::asio::error::eof) {
+       throw fc::eof_exception( FC_LOG_MESSAGE( error, "${message} ", ("message", boost::system::system_error(ec).what())) );
+    } else if ( ec) {
+       throw fc::exception( FC_LOG_MESSAGE( error, "${message} ", ("message", boost::system::system_error(ec).what())) );
+    }
+    return rlen;
   }
 
   size_t udp_socket::send_to( const std::shared_ptr<const char>& buffer, size_t length, 
@@ -76,11 +80,15 @@ namespace fc {
         throw;
     }
 
-    promise<size_t>::ptr completion_promise = promise<size_t>::create("udp_socket::send_to");
-    my->_sock.async_send_to( boost::asio::buffer(buffer.get(), length), to_asio_ep(to), 
-                             asio::detail::read_write_handler_with_buffer(completion_promise, buffer) );
-
-    return completion_promise->wait();
+    boost::system::error_code ec;
+    std::size_t rlen = my->_sock.async_send_to( boost::asio::buffer(buffer.get(), length), to_asio_ep(to), 
+                                                boost::fibers::asio::yield_t()[ec] );
+    if ( ec == boost::asio::error::eof) {
+       throw fc::eof_exception( FC_LOG_MESSAGE( error, "${message} ", ("message", boost::system::system_error(ec).what())) );
+    } else if ( ec) {
+       throw fc::exception( FC_LOG_MESSAGE( error, "${message} ", ("message", boost::system::system_error(ec).what())) );
+    }
+    return rlen;
   }
 
   void udp_socket::open() {
@@ -111,13 +119,16 @@ namespace fc {
     }
 
     boost::asio::ip::udp::endpoint boost_from_endpoint;
-    promise<size_t>::ptr completion_promise = promise<size_t>::create("udp_socket::receive_from");
-    my->_sock.async_receive_from( boost::asio::buffer(receive_buffer.get(), receive_buffer_length), 
-                                  boost_from_endpoint,
-                                  asio::detail::read_write_handler_with_buffer(completion_promise, receive_buffer) );
-    size_t bytes_read = completion_promise->wait();
+    boost::system::error_code ec;
+    std::size_t rlen = my->_sock.async_receive_from( boost::asio::buffer(receive_buffer.get(), receive_buffer_length), 
+                                                     boost_from_endpoint, boost::fibers::asio::yield_t()[ec] );
+    if ( ec == boost::asio::error::eof) {
+       throw fc::eof_exception( FC_LOG_MESSAGE( error, "${message} ", ("message", boost::system::system_error(ec).what())) );
+    } else if ( ec) {
+       throw fc::exception( FC_LOG_MESSAGE( error, "${message} ", ("message", boost::system::system_error(ec).what())) );
+    }
     from = to_fc_ep(boost_from_endpoint);
-    return bytes_read;
+    return rlen;
   }
 
   size_t udp_socket::receive_from( char* receive_buffer, size_t receive_buffer_length, fc::ip::endpoint& from ) 
@@ -137,12 +148,16 @@ namespace fc {
     }
 
     boost::asio::ip::udp::endpoint boost_from_endpoint;
-    promise<size_t>::ptr completion_promise = promise<size_t>::create("udp_socket::receive_from");
-    my->_sock.async_receive_from( boost::asio::buffer(receive_buffer, receive_buffer_length), boost_from_endpoint,
-                                  asio::detail::read_write_handler(completion_promise) );
-    size_t bytes_read = completion_promise->wait();
+    boost::system::error_code ec;
+    std::size_t rlen = my->_sock.async_receive_from( boost::asio::buffer(receive_buffer, receive_buffer_length),
+                                                     boost_from_endpoint, boost::fibers::asio::yield_t()[ec] );
+    if ( ec == boost::asio::error::eof) {
+       throw fc::eof_exception( FC_LOG_MESSAGE( error, "${message} ", ("message", boost::system::system_error(ec).what())) );
+    } else if ( ec) {
+       throw fc::exception( FC_LOG_MESSAGE( error, "${message} ", ("message", boost::system::system_error(ec).what())) );
+    }
     from = to_fc_ep(boost_from_endpoint);
-    return bytes_read;
+    return rlen;
   }
 
   void   udp_socket::close() {

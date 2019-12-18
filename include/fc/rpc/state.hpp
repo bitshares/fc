@@ -1,7 +1,10 @@
 #pragma once
+#include <boost/fiber/future.hpp>
+
 #include <fc/variant.hpp>
+
 #include <functional>
-#include <fc/thread/future.hpp>
+#include <string>
 
 namespace fc { namespace rpc {
    struct request
@@ -9,6 +12,7 @@ namespace fc { namespace rpc {
       optional<variant>   id;
       std::string         method;
       variants            params;
+      boost::fibers::future<variant> done;
       optional<std::string> jsonrpc;
    };
 
@@ -23,10 +27,10 @@ namespace fc { namespace rpc {
    {
       response() {}
       response( const optional<variant>& _id, const variant& _result,
-                const optional<string>& version = optional<string>() )
+                const optional<std::string>& version = optional<std::string>() )
          : id(_id), jsonrpc(version), result(_result) {}
       response( const optional<variant>& _id, const error_object& error,
-                const optional<string>& version = optional<string>() )
+                const optional<std::string>& version = optional<std::string>() )
          : id(_id), jsonrpc(version), error(error) {}
       optional<variant>      id;
       optional<std::string>  jsonrpc;
@@ -43,19 +47,18 @@ namespace fc { namespace rpc {
          void add_method( const std::string& name, method m );
          void remove_method( const std::string& name );
 
-         variant local_call( const string& method_name, const variants& args );
+         variant local_call( const std::string& method_name, const variants& args );
          void    handle_reply( const response& response );
 
-         request start_remote_call( const string& method_name, variants args );
-         variant wait_for_response( const variant& request_id );
+         request start_remote_call( const std::string& method_name, variants args );
 
          void close();
 
-         void on_unhandled( const std::function<variant(const string&,const variants&)>& unhandled );
+         void on_unhandled( const std::function<variant(const std::string&,const variants&)>& unhandled );
 
       private:
          uint64_t                                                   _next_id = 1;
-         std::map<variant, fc::promise<variant>::ptr>               _awaiting;
+         std::map<variant, boost::fibers::promise<variant>>         _awaiting;
          std::unordered_map<std::string, method>                    _methods;
          std::function<variant(const string&,const variants&)>      _unhandled;
    };

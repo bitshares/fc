@@ -1,12 +1,11 @@
 #pragma once
-#include <fc/io/stdio.hpp>
-#include <fc/io/json.hpp>
-#include <fc/io/buffered_iostream.hpp>
-#include <fc/io/sstream.hpp>
 #include <fc/rpc/api_connection.hpp>
-#include <fc/thread/thread.hpp>
+#include <fc/variant.hpp>
+
+#include <boost/fiber/future.hpp>
 
 #include <iostream>
+#include <string>
 
 namespace fc { namespace rpc {
 
@@ -19,7 +18,7 @@ namespace fc { namespace rpc {
          cli( uint32_t max_depth ) : api_connection(max_depth) {}
          ~cli();
 
-         virtual variant send_call( api_id_type api_id, string method_name, variants args = variants() );
+         virtual variant send_call( api_id_type api_id, std::string method_name, variants args = variants() );
          virtual variant send_callback( uint64_t callback_id, variants args = variants() );
          virtual void    send_notice( uint64_t callback_id, variants args = variants() );
 
@@ -27,20 +26,19 @@ namespace fc { namespace rpc {
          void stop();
          void cancel();
          void wait();
-         void format_result( const string& method, std::function<string(variant,const variants&)> formatter);
+         void format_result( const std::string& method, std::function<std::string(variant,const variants&)> formatter);
 
          virtual void getline( const std::string& prompt, std::string& line );
 
-         void set_prompt( const string& prompt );
+         void set_prompt( const std::string& prompt );
 
-         void set_regex_secret( const string& expr );
+         void set_regex_secret( const std::string& expr );
 
       private:
          void run();
 
          std::string _prompt = ">>>";
          std::map<string,std::function<string(variant,const variants&)> > _result_formatters;
-         fc::future<void> _run_complete;
-         fc::thread* _getline_thread = nullptr; ///< Wait for user input in this thread
+         boost::fibers::future<void> _run_complete;
    };
 } } 

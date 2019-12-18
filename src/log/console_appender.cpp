@@ -1,20 +1,18 @@
 #include <fc/log/console_appender.hpp>
 #include <fc/log/log_message.hpp>
-#include <fc/thread/unique_lock.hpp>
 #include <fc/variant.hpp>
 #include <fc/reflect/variant.hpp>
 #ifndef WIN32
 #include <unistd.h>
 #endif
-#include <boost/thread/mutex.hpp>
 #define COLOR_CONSOLE 1
 #include "console_defines.h"
 #include <fc/io/stdio.hpp>
 #include <fc/exception/exception.hpp>
+
 #include <iomanip>
 #include <sstream>
 #include <mutex>
-
 
 namespace fc {
 
@@ -83,8 +81,8 @@ namespace fc {
       }
    }
 
-   boost::mutex& log_mutex() {
-    static boost::mutex m; return m;
+   static std::mutex& log_mutex() {
+      static std::mutex m; return m;
    }
 
    void console_appender::log( const log_message& m ) {
@@ -116,7 +114,7 @@ namespace fc {
       std::string message = fc::format_string( m.get_format(), m.get_data(), my->cfg.max_object_depth );
       line << message;
 
-      fc::unique_lock<boost::mutex> lock(log_mutex());
+      std::unique_lock<std::mutex> lock(log_mutex());
 
       print( line.str(), my->lc[m.get_context().get_log_level()] );
 

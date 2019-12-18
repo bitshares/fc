@@ -22,7 +22,6 @@ namespace fc
 
   class cin_t : virtual public istream { 
      public:
-      ~cin_t();
       virtual size_t readsome( char* buf, size_t len );
       virtual size_t readsome( const std::shared_ptr<char>& buf, size_t len, size_t offset );
       virtual istream& read( char* buf, size_t len );

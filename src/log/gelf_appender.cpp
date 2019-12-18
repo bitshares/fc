@@ -4,13 +4,13 @@
 #include <fc/exception/exception.hpp>
 #include <fc/log/gelf_appender.hpp>
 #include <fc/reflect/variant.hpp>
-#include <fc/thread/thread.hpp>
 #include <fc/variant.hpp>
 #include <fc/io/json.hpp>
 #include <fc/crypto/city.hpp>
 #include <fc/compress/zlib.hpp>
 
 #include <boost/lexical_cast.hpp>
+
 #include <iomanip>
 #include <iostream>
 #include <queue>

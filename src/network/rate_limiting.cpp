@@ -9,7 +9,7 @@
 #include <fc/log/logger.hpp>
 #include <fc/io/stdio.hpp>
 #include <fc/exception/exception.hpp>
-#include <fc/thread/thread.hpp>
+#include <fc/thread/async.hpp>
 
 namespace fc 
 {
@@ -23,15 +23,15 @@ namespace fc
       size_t                        length;
       size_t                        offset;
       size_t                        permitted_length;
-      promise<size_t>::ptr          completion_promise;
+      boost::fibers::promise<size_t> completion_promise;
 
       rate_limited_operation(size_t length,
                              size_t offset,
-                             promise<size_t>::ptr&& completion_promise) :
+                             boost::fibers::promise<size_t>&& completion_promise) :
         length(length),
         offset(offset),
         permitted_length(0),
-        completion_promise(completion_promise)
+        completion_promise( std::move( completion_promise ) )
       {}
 
       virtual void perform_operation() = 0;
@@ -48,8 +48,8 @@ namespace fc
                                        const char* buffer,
                                        size_t length,
                                        size_t offset,
-                                       promise<size_t>::ptr completion_promise) :
-        rate_limited_operation(length, offset, std::move(completion_promise)),
+                                       boost::fibers::promise<size_t>&& completion_promise) :
+        rate_limited_operation(length, offset, std::move( completion_promise ) ),
         socket(socket),
         raw_buffer(buffer)
       {
@@ -59,22 +59,24 @@ namespace fc
                                        const std::shared_ptr<const char>& buffer,
                                        size_t length,
                                        size_t offset,
-                                       promise<size_t>::ptr completion_promise) :
-        rate_limited_operation(length, offset, std::move(completion_promise)),
+                                       boost::fibers::promise<size_t>&& completion_promise) :
+        rate_limited_operation(length, offset, std::move( completion_promise ) ),
         socket(socket),
         raw_buffer(nullptr),
         shared_buffer(buffer)
       {}
       virtual void perform_operation() override
       {
-        if (raw_buffer)
-          asio::async_write_some(socket,
-                                 raw_buffer, permitted_length,
-                                 completion_promise);
-        else
-          asio::async_write_some(socket,
-                                 shared_buffer, permitted_length, offset, 
-                                 completion_promise);          
+         try {
+            if (raw_buffer)
+               completion_promise.set_value( asio::write_some( socket, raw_buffer, permitted_length ) );
+            else
+               completion_promise.set_value( asio::write_some( socket, shared_buffer, permitted_length, offset ) );
+         }
+         catch( ... )
+         {
+            completion_promise.set_exception( std::current_exception() );
+         }
       }
     };
 
@@ -89,8 +91,8 @@ namespace fc
                                       char* buffer,
                                       size_t length,
                                       size_t offset, 
-                                      promise<size_t>::ptr completion_promise) :
-        rate_limited_operation(length, offset, std::move(completion_promise)),
+                                      boost::fibers::promise<size_t>&& completion_promise) :
+        rate_limited_operation(length, offset, std::move( completion_promise ) ),
         socket(socket),
         raw_buffer(buffer)
       {}
@@ -98,23 +100,24 @@ namespace fc
                                       const std::shared_ptr<char>& buffer,
                                       size_t length,
                                       size_t offset,
-                                      promise<size_t>::ptr completion_promise) :
-        rate_limited_operation(length, offset, std::move(completion_promise)),
+                                      boost::fibers::promise<size_t>&& completion_promise) :
+        rate_limited_operation(length, offset, std::move( completion_promise ) ),
         socket(socket),
         raw_buffer(nullptr),
         shared_buffer(buffer)
       {}
       virtual void perform_operation() override
       {
-        if (raw_buffer)
-          asio::async_read_some(socket,
-                                raw_buffer, permitted_length,
-                                completion_promise);
-        else
-          asio::async_read_some(socket,
-                                shared_buffer, permitted_length, offset,
-                                completion_promise);
-          
+         try {
+            if (raw_buffer)
+               completion_promise.set_value( asio::read_some(socket, raw_buffer, permitted_length ) );
+            else
+               completion_promise.set_value( asio::read_some(socket, shared_buffer, permitted_length, offset ) );
+         }
+         catch( ... )
+         {
+            completion_promise.set_exception( std::current_exception() );
+         }
       }
     };
 
@@ -191,7 +194,7 @@ namespace fc
       uint32_t _download_bytes_per_second;
       uint32_t _burstiness_in_seconds;
 
-      microseconds _granularity; // how often to add tokens to the bucket
+      std::chrono::milliseconds _granularity; // how often to add tokens to the bucket
       uint32_t _read_tokens;
       uint32_t _unused_read_tokens; // gets filled with tokens for unused bytes (if I'm allowed to read 200 bytes and I try to read 200 bytes, but can only read 50, tokens for the other 150 get returned here)
       uint32_t _write_tokens;
@@ -206,10 +209,15 @@ namespace fc
       time_point _last_read_iteration_time;
       time_point _last_write_iteration_time;
 
-      future<void> _process_pending_reads_loop_complete;
-      promise<void>::ptr _new_read_operation_available_promise;
-      future<void> _process_pending_writes_loop_complete;
-      promise<void>::ptr _new_write_operation_available_promise;
+      boost::fibers::mutex _read_mtx;
+      boost::fibers::future<void> _process_pending_reads_loop_complete;
+      boost::fibers::condition_variable _new_read_operation_available;
+
+      boost::fibers::mutex _write_mtx;
+      boost::fibers::future<void> _process_pending_writes_loop_complete;
+      boost::fibers::condition_variable _new_write_operation_available;
+
+      bool _shutdown = false;
 
       average_rate_meter _actual_upload_rate;
       average_rate_meter _actual_download_rate;
@@ -242,7 +250,7 @@ namespace fc
       _upload_bytes_per_second(upload_bytes_per_second),
       _download_bytes_per_second(download_bytes_per_second),
       _burstiness_in_seconds(burstiness_in_seconds),
-      _granularity(milliseconds(50)),
+      _granularity(50),
       _read_tokens(_download_bytes_per_second),
       _unused_read_tokens(0),
       _write_tokens(_upload_bytes_per_second),
@@ -254,14 +262,28 @@ namespace fc
     {
       try
       {
-        _process_pending_reads_loop_complete.cancel_and_wait();
+         std::unique_lock<boost::fibers::mutex> lock( _read_mtx );
+         _shutdown = true;
+         _new_read_operation_available.notify_all();
+         if( _process_pending_reads_loop_complete.valid() )
+         {
+            lock.unlock();
+            _process_pending_reads_loop_complete.wait();
+         }
       }
       catch (...)
       {
       }
       try
       {
-        _process_pending_writes_loop_complete.cancel_and_wait();
+         std::unique_lock<boost::fibers::mutex> lock( _write_mtx );
+         _shutdown = true;
+         _new_write_operation_available.notify_all();
+         if( _process_pending_writes_loop_complete.valid() )
+         {
+            lock.unlock();
+            _process_pending_writes_loop_complete.wait();
+         }
       }
       catch (...)
       {
@@ -284,19 +306,25 @@ namespace fc
       size_t bytes_read;
       if (_download_bytes_per_second)
       {
-        promise<size_t>::ptr completion_promise = promise<size_t>::create("rate_limiting_group_impl::readsome");
-        rate_limited_tcp_read_operation read_operation(socket, buffer, length, offset, completion_promise);
-        _read_operations_for_next_iteration.push_back(&read_operation);
+         std::unique_lock<boost::fibers::mutex> lock( _read_mtx );
+         boost::fibers::promise<size_t> completion_promise;
+         boost::fibers::future<size_t> completion = completion_promise.get_future();
+         rate_limited_tcp_read_operation read_operation( socket, buffer, length, offset,
+                                                         std::move( completion_promise ));
+         _read_operations_for_next_iteration.push_back(&read_operation);
 
         // launch the read processing loop it if isn't running, or signal it to resume if it's paused.
-        if (!_process_pending_reads_loop_complete.valid() || _process_pending_reads_loop_complete.ready())
-          _process_pending_reads_loop_complete = async([=](){ process_pending_reads(); }, "process_pending_reads" );
-        else if (_new_read_operation_available_promise)
-          _new_read_operation_available_promise->set_value();
+        if( !_process_pending_reads_loop_complete.valid()
+               || _process_pending_reads_loop_complete.wait_for(std::chrono::seconds(0)) == boost::fibers::future_status::ready )
+           _process_pending_reads_loop_complete = async( [this](){ process_pending_reads(); },
+                                                         std::this_thread::get_id(), "process_pending_reads" );
+        else
+           _new_read_operation_available.notify_all();
+        lock.unlock();
 
         try
         {
-          bytes_read = completion_promise->wait();
+          bytes_read = completion.get();
         }
         catch (...)
         {
@@ -330,19 +358,25 @@ namespace fc
       size_t bytes_written;
       if (_upload_bytes_per_second)
       {
-        promise<size_t>::ptr completion_promise = promise<size_t>::create("rate_limiting_group_impl::writesome");
-        rate_limited_tcp_write_operation write_operation(socket, buffer, length, offset, completion_promise);
-        _write_operations_for_next_iteration.push_back(&write_operation);
+         std::unique_lock<boost::fibers::mutex> lock( _write_mtx );
+         boost::fibers::promise<size_t> completion_promise;
+         boost::fibers::future<size_t> completion = completion_promise.get_future();
+         rate_limited_tcp_write_operation write_operation( socket, buffer, length, offset,
+                                                           std::move( completion_promise ) );
+         _write_operations_for_next_iteration.push_back(&write_operation);
 
         // launch the write processing loop it if isn't running, or signal it to resume if it's paused.
-        if (!_process_pending_writes_loop_complete.valid() || _process_pending_writes_loop_complete.ready())
-          _process_pending_writes_loop_complete = async([=](){ process_pending_writes(); }, "process_pending_writes");
-        else if (_new_write_operation_available_promise)
-          _new_write_operation_available_promise->set_value();
+        if( !_process_pending_writes_loop_complete.valid()
+               || _process_pending_writes_loop_complete.wait_for(std::chrono::seconds(0)) == boost::fibers::future_status::ready )
+          _process_pending_writes_loop_complete = async( [this](){ process_pending_writes(); },
+                                                         std::this_thread::get_id(), "process_pending_writes");
+        else
+          _new_write_operation_available.notify_all();
+        lock.unlock();
 
         try
         {
-          bytes_written = completion_promise->wait();
+          bytes_written = completion.get();
         }
         catch (...)
         {
@@ -362,44 +396,47 @@ namespace fc
 
     void rate_limiting_group_impl::process_pending_reads()
     {
-      for (;;)
+      std::unique_lock<boost::fibers::mutex> lock( _read_mtx );
+      while( !_shutdown )
       {
-        process_pending_operations(_last_read_iteration_time, _download_bytes_per_second,
-                                   _read_operations_in_progress, _read_operations_for_next_iteration, _read_tokens, _unused_read_tokens);
-
-        _new_read_operation_available_promise = promise<void>::create("rate_limiting_group_impl::process_pending_reads");
-        try
-        {
-          if (_read_operations_in_progress.empty())
-            _new_read_operation_available_promise->wait();
-          else
-            _new_read_operation_available_promise->wait(_granularity);
-        }
-        catch (const timeout_exception&)
-        {
-        }
-        _new_read_operation_available_promise.reset();
+         lock.unlock();
+         process_pending_operations( _last_read_iteration_time, _download_bytes_per_second,
+                                     _read_operations_in_progress, _read_operations_for_next_iteration,
+                                     _read_tokens, _unused_read_tokens );
+         lock.lock();
+         try
+         {
+            if (_read_operations_in_progress.empty())
+               _new_read_operation_available.wait( lock, [this] () { return _read_operations_in_progress.empty(); } );
+            else
+               _new_read_operation_available.wait_for( lock, _granularity );
+         }
+         catch (const timeout_exception&)
+         {
+         }
       }
     }
     void rate_limiting_group_impl::process_pending_writes()
     {
-      for (;;)
+      std::unique_lock<boost::fibers::mutex> lock( _write_mtx );
+      while( !_shutdown )
       {
-        process_pending_operations(_last_write_iteration_time, _upload_bytes_per_second,
-                                   _write_operations_in_progress, _write_operations_for_next_iteration, _write_tokens, _unused_write_tokens);
+         lock.unlock();
+         process_pending_operations( _last_write_iteration_time, _upload_bytes_per_second,
+                                     _write_operations_in_progress, _write_operations_for_next_iteration,
+                                     _write_tokens, _unused_write_tokens );
 
-        _new_write_operation_available_promise = promise<void>::create("rate_limiting_group_impl::process_pending_writes");
-        try
-        {
+         lock.lock();
+         try
+         {
           if (_write_operations_in_progress.empty())
-            _new_write_operation_available_promise->wait();
+            _new_write_operation_available.wait( lock, [this] () { return _write_operations_in_progress.empty(); } );
           else
-            _new_write_operation_available_promise->wait(_granularity);
-        }
-        catch (const timeout_exception&)
-        {
-        }
-        _new_write_operation_available_promise.reset();
+            _new_write_operation_available.wait_for( lock, _granularity );
+         }
+         catch (const timeout_exception&)
+         {
+         }
       }
     }
     void rate_limiting_group_impl::process_pending_operations(time_point& last_iteration_start_time, 

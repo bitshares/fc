@@ -1,5 +1,8 @@
+#include <fc/io/iostream.hpp>
+#include <fc/io/json.hpp>
+#include <fc/io/stdio.hpp>
 #include <fc/rpc/cli.hpp>
-#include <fc/thread/thread.hpp>
+#include <fc/thread/async.hpp>
 
 #include <iostream>
 
@@ -15,6 +18,7 @@
 # endif
 #endif
 
+#include <boost/fiber/algo/round_robin.hpp>
 #include <boost/regex.hpp>
 
 namespace fc { namespace rpc {
@@ -31,12 +35,32 @@ static std::vector<std::string>& cli_commands()
    return *cmds;
 }
 
+/***
+ * Indicates whether CLI is quitting after got a SIGINT signal.
+ * In order to be used by editline which is C-style, this is a global variable.
+ */
+static std::atomic<bool> cli_quitting{ false };
+
+/** It's a bad idea to have to clis running simultaneuosly */
+static std::atomic<bool> cli_running{ false };
+
+#ifdef HAVE_EDITLINE
+std::thread _editline_thread;
+boost::fibers::condition_variable _sema;
+boost::fibers::mutex _mtx;
+
+static void _shutdown_editline( bool wait )
+{
+   std::unique_lock<boost::fibers::mutex> lock( _mtx );
+   _sema.notify_all();
+   if( wait && _editline_thread.joinable() ) _editline_thread.join();
+}
+#endif
+
 cli::~cli()
 {
-   if( _run_complete.valid() )
-   {
+   if( cli_running.load() )
       stop();
-   }
 }
 
 variant cli::send_call( api_id_type api_id, string method_name, variants args /* = variants() */ )
@@ -71,7 +95,7 @@ void cli::set_regex_secret( const string& expr )
 
 void cli::run()
 {
-   while( !_run_complete.canceled() )
+   while( !cli_quitting.load() )
    {
       try
       {
@@ -82,12 +106,10 @@ void cli::run()
          }
          catch ( const fc::eof_exception& e )
          {
-            _getline_thread = nullptr;
             break;
          }
          catch ( const fc::canceled_exception& e )
          {
-            _getline_thread = nullptr;
             break;
          }
 
@@ -101,22 +123,22 @@ void cli::run()
          auto result = receive_call( 0, method, variants( args.begin()+1,args.end() ) );
          auto itr = _result_formatters.find( method );
          if( itr == _result_formatters.end() )
-         {
             std::cout << fc::json::to_pretty_string( result ) << "\n";
-         }
          else
             std::cout << itr->second( result, args ) << "\n";
       }
       catch ( const fc::exception& e )
       {
          if (e.code() == fc::canceled_exception_code)
-         {
-            _getline_thread = nullptr;
             break;
-         }
          std::cout << e.to_detail_string() << "\n";
       }
    }
+   cli_quitting.store( true );
+#ifdef HAVE_EDITLINE
+   _shutdown_editline( true );
+#endif
+   cli_running.store( false );
 }
 
 /****
@@ -222,12 +244,6 @@ static int cli_check_secret(const char *source)
    return 0;
 }
 
-/***
- * Indicates whether CLI is quitting after got a SIGINT signal.
- * In order to be used by editline which is C-style, this is a global variable.
- */
-static int cli_quitting = false;
-
 #ifndef WIN32
 /**
  * Get next character from stdin, or EOF if got a SIGINT signal
@@ -243,7 +259,12 @@ static int interruptible_getc(void)
    r = read(0, &c, 1); // read from stdin, will return -1 on SIGINT
 
    if( r == -1 && errno == EINTR )
-      cli_quitting = true;
+   {
+      cli_quitting.store( true );
+#ifdef HAVE_EDITLINE
+      _shutdown_editline( false );
+#endif
+   }
 
    return r == 1 && !cli_quitting ? c : EOF;
 }
@@ -251,19 +272,25 @@ static int interruptible_getc(void)
 
 void cli::start()
 {
+   {
+      bool expected = false;
+      FC_ASSERT( cli_running.compare_exchange_strong( expected, true ), "Attempting to run 2 cli instances is a bad idea!" );
+   }
+   cli_quitting.store( false );
 
 #ifdef HAVE_EDITLINE
    el_hist_size = 256;
 
    rl_set_complete_func(my_rl_complete);
    rl_set_list_possib_func(cli_completion);
-   //rl_set_check_secret_func(cli_check_secret);
    rl_set_getc_func(interruptible_getc);
 
-   static fc::thread getline_thread("getline");
-   _getline_thread = &getline_thread;
-
-   cli_quitting = false;
+   _editline_thread = std::thread( [] () {
+      set_thread_name( "editline" );
+      initialize_fibers();
+      std::unique_lock<boost::fibers::mutex> lock( _mtx );
+      _sema.wait( lock, [] () { return cli_quitting.load(); } );
+   });
 
    cli_commands() = get_method_names(0);
 #endif
@@ -273,21 +300,16 @@ void cli::start()
 
 void cli::cancel()
 {
-   _run_complete.cancel();
-#ifdef HAVE_EDITLINE
    cli_quitting = true;
-   if( _getline_thread )
-   {
-      _getline_thread->signal(SIGINT);
-      _getline_thread = nullptr;
-   }
+#ifdef HAVE_EDITLINE
+   _shutdown_editline( true );
 #endif
+   _run_complete.wait();
 }
 
 void cli::stop()
 {
    cancel();
-   _run_complete.wait();
 }
 
 void cli::wait()
@@ -302,23 +324,15 @@ void cli::wait()
  */
 void cli::getline( const std::string& prompt, std::string& line)
 {
+   if( !cli_running.load() || cli_quitting.load() )
+      FC_THROW_EXCEPTION( fc::eof_exception, "CLI shutting down or not running" );
+
    // getting file descriptor for C++ streams is near impossible
    // so we just assume it's the same as the C stream...
 #ifdef HAVE_EDITLINE
-#ifndef WIN32   
    if( isatty( fileno( stdin ) ) )
-#else
-   // it's implied by
-   // https://msdn.microsoft.com/en-us/library/f4s0ddew.aspx
-   // that this is the proper way to do this on Windows, but I have
-   // no access to a Windows compiler and thus,
-   // no idea if this actually works
-   if( _isatty( _fileno( stdin ) ) )
-#endif
    {
-      if( _getline_thread )
-      {
-         _getline_thread->async( [&prompt,&line](){
+      fc::async( [&prompt,&line](){
             char* line_read = nullptr;
             std::cout.flush(); //readline doesn't use cin, so we must manually flush _out
             line_read = readline(prompt.c_str());
@@ -336,14 +350,12 @@ void cli::getline( const std::string& prompt, std::string& line)
                line = line + ' ' + line_read;
             }
             free(line_read);
-         }).wait();
-      }
+      }, _editline_thread.get_id() ).wait();
    }
    else
 #endif
    {
       std::cout << prompt;
-      // sync_call( cin_thread, [&](){ std::getline( *input_stream, line ); }, "getline");
       fc::getline( fc::cin, line );
    }
 }

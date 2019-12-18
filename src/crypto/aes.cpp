@@ -7,10 +7,8 @@
 
 #include <fc/log/logger.hpp>
 
-#include <fc/thread/thread.hpp>
 #include <fc/io/raw.hpp>
 #include <boost/endian/buffers.hpp>
-#include <boost/thread/mutex.hpp>
 #include <openssl/opensslconf.h>
 #ifndef OPENSSL_THREADS
 # error "OpenSSL must be configured to support threads"
@@ -20,6 +18,9 @@
 #if defined(_WIN32)
 # include <windows.h>
 #endif
+
+#include <mutex>
+#include <thread>
 
 namespace fc {
 
@@ -78,21 +79,6 @@ uint32_t aes_encoder::encode( const char* plaintxt, uint32_t plaintext_len, char
     FC_ASSERT( (uint32_t) ciphertext_len == plaintext_len, "", ("ciphertext_len",ciphertext_len)("plaintext_len",plaintext_len) );
     return ciphertext_len;
 }
-#if 0
-uint32_t aes_encoder::final_encode( char* ciphertxt )
-{
-    int ciphertext_len = 0;
-    /* Finalise the encryption. Further ciphertext bytes may be written at
-    *    * this stage.
-    *       */
-    if(1 != EVP_EncryptFinal_ex(my->ctx, (unsigned char*)ciphertxt, &ciphertext_len)) 
-    {
-        FC_THROW_EXCEPTION( exception, "error during aes 256 cbc encryption final", 
-                           ("s", ERR_error_string( ERR_get_error(), nullptr) ) );
-    }
-    return ciphertext_len;
-}
-#endif
 
 
 struct aes_decoder::impl 
@@ -393,7 +379,7 @@ std::vector<char> aes_load( const fc::path& file, const fc::sha512& key )
 */
 struct openssl_thread_config
 {
-  static boost::mutex* openssl_mutexes;
+  static std::vector<std::mutex> openssl_mutexes;
   static unsigned long get_thread_id();
   static void locking_callback(int mode, int type, const char *file, int line);
   openssl_thread_config();
@@ -401,19 +387,24 @@ struct openssl_thread_config
 };
 openssl_thread_config openssl_thread_config_manager;
 
-boost::mutex*         openssl_thread_config::openssl_mutexes = nullptr;
+std::vector<std::mutex> openssl_thread_config::openssl_mutexes;
 
 unsigned long openssl_thread_config::get_thread_id()
 {
 #ifdef _WIN32
   return (unsigned long)::GetCurrentThreadId();
 #else
-  return (unsigned long)(&fc::thread::current());    // TODO: should expose boost thread id
+  std::stringstream ss;
+  ss << std::hex << std::this_thread::get_id();
+  unsigned long result;
+  ss >> result;
+  return result;
 #endif
 }
 
 void openssl_thread_config::locking_callback(int mode, int type, const char *file, int line)
 {
+  FC_ASSERT( size_t(type) < openssl_mutexes.size() );
   if (mode & CRYPTO_LOCK)
     openssl_mutexes[type].lock();
   else
@@ -429,7 +420,7 @@ openssl_thread_config::openssl_thread_config()
   if (CRYPTO_get_id_callback() == NULL &&
       CRYPTO_get_locking_callback() == NULL)
   {
-    openssl_mutexes = new boost::mutex[CRYPTO_num_locks()];
+    openssl_mutexes = std::vector<std::mutex>( CRYPTO_num_locks() );
     CRYPTO_set_id_callback(&get_thread_id);
     CRYPTO_set_locking_callback(&locking_callback);
   }
@@ -440,8 +431,6 @@ openssl_thread_config::~openssl_thread_config()
   {
     CRYPTO_set_id_callback(NULL);
     CRYPTO_set_locking_callback(NULL);
-    delete[] openssl_mutexes;
-    openssl_mutexes = nullptr;
   }
 }
 

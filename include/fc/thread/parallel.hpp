@@ -24,11 +24,12 @@
 
 #pragma once
 
-#include <fc/thread/task.hpp>
-#include <fc/thread/thread.hpp>
-#include <fc/asio.hpp>
+#include <boost/fiber/future/future.hpp>
+#include <boost/fiber/future/promise.hpp>
+#include <boost/fiber/future/packaged_task.hpp>
+#include <boost/fiber/fiber.hpp>
 
-#include <boost/atomic/atomic.hpp>
+#include <memory>
 
 namespace fc {
 
@@ -39,9 +40,14 @@ namespace fc {
       public:
          worker_pool();
          ~worker_pool();
-         void post( task_base* task );
+         template<typename T>
+         void post( boost::fibers::packaged_task< T >&& task )
+         {
+            post( boost::fibers::fiber( std::move( task ) ) );
+         }
+         void post( boost::fibers::fiber&& fiber );
       private:
-          pool_impl*    my;
+          std::unique_ptr<pool_impl> my;
       };
 
       worker_pool& get_worker_pool();
@@ -51,16 +57,16 @@ namespace fc {
    private:
       class ticket_guard {
       public:
-         explicit ticket_guard( boost::atomic<future<void>*>& latch );
+         explicit ticket_guard( std::shared_ptr<boost::fibers::promise<void>>& latch );
          ~ticket_guard();
          void wait_for_my_turn();
       private:
-         promise<void>::ptr my_promise;
-         future<void>*      ticket;
+         std::shared_ptr<boost::fibers::promise<void>> my_promise;
+         boost::fibers::future<void> ticket;
       };
 
       friend class ticket_guard;
-      boost::atomic<future<void>*> latch;
+      std::shared_ptr<boost::fibers::promise<void>> latch;
 
    public:
       serial_valve();
@@ -94,14 +100,11 @@ namespace fc {
     *  @param f the operation to perform
     */
    template<typename Functor>
-   auto do_parallel( Functor&& f, const char* desc FC_TASK_NAME_DEFAULT_ARG ) -> fc::future<decltype(f())> {
+   auto do_parallel( Functor&& f ) -> boost::fibers::future<decltype(f())> {
       typedef decltype(f()) Result;
-      typedef typename std::remove_const_t< std::remove_reference_t<Functor> > FunctorType;
-      typename task<Result,sizeof(FunctorType)>::ptr tsk =
-         task<Result,sizeof(FunctorType)>::create( std::forward<Functor>(f), desc );
-      tsk->retain(); // HERE BE DRAGONS
-      fc::future<Result> r( std::dynamic_pointer_cast< promise<Result> >(tsk) );
-      detail::get_worker_pool().post( tsk.get() );
+      boost::fibers::packaged_task<Result()> task( std::move(f) );
+      boost::fibers::future<Result> r = task.get_future();
+      detail::get_worker_pool().post( std::move(task) );
       return r;
    }
 }

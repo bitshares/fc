@@ -1,8 +1,5 @@
 #include <boost/test/unit_test.hpp>
-#include <boost/chrono.hpp>
-#include <boost/thread/thread.hpp>
 
-#include <fc/thread/thread.hpp>
 #include <fc/reflect/reflect.hpp>
 #include <fc/reflect/variant.hpp>
 #include <fc/log/file_appender.hpp>
@@ -13,9 +10,10 @@
 #include <fc/io/json.hpp>
 #include <fc/io/fstream.hpp>
 
-#include <thread>
+#include <chrono>
 #include <iostream>
 #include <fstream>
+#include <thread>
 
 BOOST_AUTO_TEST_SUITE(logging_tests)
 
@@ -64,7 +62,7 @@ BOOST_AUTO_TEST_CASE(log_reboot)
             prev_log_filename = log_filename;
         }
 
-        fc::usleep(fc::seconds(1));
+        std::this_thread::sleep_for( std::chrono::seconds(1) );
     }
     BOOST_TEST_MESSAGE("Loop complete");
 }
