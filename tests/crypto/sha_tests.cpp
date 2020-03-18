@@ -2,6 +2,7 @@
 
 #include <fc/crypto/digest.hpp>
 #include <fc/crypto/ripemd160.hpp>
+#include <fc/crypto/hash160.hpp>
 #include <fc/crypto/sha1.hpp>
 #include <fc/crypto/sha224.hpp>
 #include <fc/crypto/sha256.hpp>
@@ -106,6 +107,18 @@ BOOST_AUTO_TEST_CASE(ripemd160_test)
     test<fc::ripemd160>( TEST5, "52783243c1697bdbe16d37f97f68f08325dc1528" );
     test_big<fc::ripemd160>( "29b6df855772aa9a95442bf83b282b495f9f6541" );
     test_stream<fc::ripemd160>();
+}
+
+BOOST_AUTO_TEST_CASE( hash160_test )
+{
+   
+   test<fc::hash160>( TEST1, "bb1be98c142444d7a56aa3981c3942a978e4dc33" );
+   test<fc::hash160>( TEST2, "b472a266d0bd89c13706a4132ccfb16f7c3b9fcb" );
+   test<fc::hash160>( TEST3, "69dda8a60e0cfc2353aa776864092c0e5ccb4834" );
+   test<fc::hash160>( TEST4, "dfcc6db6ea54d85d2e3a76573183f7a037a729b0" );
+   init_5();
+   test<fc::hash160>( TEST5, "f9be0e104ef2ed83a7ddb4765780951405e56ba4" ); 
+   test<fc::hash160>( TEST6, "3eca00d3b1fcafb0b74fa07fe890bea9b053a17e" );
 }
 
 BOOST_AUTO_TEST_CASE(sha1_test)

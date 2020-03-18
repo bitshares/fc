@@ -19,9 +19,26 @@ template<typename...> struct list;
 namespace impl {
 using typelist::list;
 
+template<typename, typename> struct append;
+template<typename... Ts, typename T> struct append<list<Ts...>, T> { using type = list<Ts..., T>; };
+
+template<typename, typename> struct prepend;
+template<typename... Ts, typename T> struct prepend<list<Ts...>, T> { using type = list<T, Ts...>; };
+
+template<typename, typename, typename, size_t, typename=void> struct insert;
+template<typename... Before, typename... After, typename New>
+struct insert<list<Before...>, list<After...>, New, 0, void> { using type = list<Before..., New, After...>; };
+template<typename... Before, typename T, typename... After, typename New, size_t position>
+struct insert<list<Before...>, list<T, After...>, New, position, std::enable_if_t<position != 0>>
+      : insert<list<Before..., T>, list<After...>, New, position-1> {};
+
 template<typename, template<typename...> class> struct apply;
 template<typename... Ts, template<typename...> class Delegate>
 struct apply<list<Ts...>, Delegate> { using type = Delegate<Ts...>; };
+
+template<typename, template<typename...> class> struct apply_each;
+template<typename... Ts, template<typename...> class Delegate>
+struct apply_each<list<Ts...>, Delegate> { using type = list<Delegate<Ts>...>; };
 
 template<typename... Ts>
 struct length;
@@ -48,10 +65,10 @@ struct make_sequence {
                                 list<std::integral_constant<std::size_t, count-1>>>::type;
 };
 
-template<typename, typename> struct transform;
-template<typename... List, typename Transformer>
+template<typename, template<typename> class> struct transform;
+template<typename... List, template<typename> class Transformer>
 struct transform<list<List...>, Transformer> {
-   using type = list<typename Transformer::template transform<List>::type...>;
+   using type = list<typename Transformer<List>::type...>;
 };
 
 template<typename Search, typename List> struct index_of;
@@ -117,7 +134,7 @@ template<typename... Results, typename T, typename... Types, std::size_t end>
 struct slice<list<Results...>, list<T, Types...>, 0, end, std::enable_if_t<end != 0>>
         : slice<list<Results..., T>, list<Types...>, 0, end-1> {};
 template<typename T, typename... Types, std::size_t start, std::size_t end>
-struct slice<list<>, list<T, Types...>, start, end, std::enable_if_t<start != 0>>
+struct slice<list<>, list<T, Types...>, start, end, std::enable_if_t<start != 0 && start != end>>
         : slice<list<>, list<Types...>, start-1, end-1> {};
 
 template<typename, typename> struct zip;
@@ -137,9 +154,25 @@ Ret dispatch_helper(Callable& c) { return c(T()); }
 template<typename... Types>
 struct list { using type = list; };
 
+/// Append a new type to the end of a list
+template<typename List, typename NewType>
+using append = typename impl::append<List, NewType>::type;
+
+/// Prepend a new type to the end of a list
+template<typename List, typename NewType>
+using prepend = typename impl::prepend<List, NewType>::type;
+
+/// Insert a new type into the list at the given position
+template<typename List, typename NewType, size_t position>
+using insert = typename impl::insert<list<>, List, NewType, position>::type;
+
 /// Apply a list of types as arguments to another template
 template<typename List, template<typename...> class Delegate>
 using apply = typename impl::apply<List, Delegate>::type;
+
+/// Apply each type in a list as the argument to another template
+template<typename List, template<typename...> class Delegate>
+using apply_each = typename impl::apply_each<List, Delegate>::type;
 
 /// Get the number of types in a list
 template<typename List>
@@ -149,7 +182,7 @@ constexpr static std::size_t length() { return apply<List, impl::length>::value;
 template<typename... Lists>
 using concat = typename impl::concat<Lists...>::type;
 
-/// Create a list of sequential integers ranging from [0, count)
+/// Create a list of sequential integral_constants ranging from [0, count)
 template<std::size_t count>
 using make_sequence = typename impl::make_sequence<count>::type;
 
@@ -166,8 +199,17 @@ struct builder {
 };
 
 /// Transform elements of a typelist
-template<typename List, typename Transformer>
+template<typename List, template<typename> class Transformer>
 using transform = typename impl::transform<List, Transformer>::type;
+
+/// Convert a filter to a transformer that returns a boolean integral_constant
+/// i.e. transform<make_sequence<5>, transformer_from_filter<is_odd>::transformer> would yield
+/// list<false, true, false, true, false>
+template<template<typename> class Filter>
+struct transformer_from_filter {
+   template<typename T>
+   struct transformer { using type = std::integral_constant<bool, Filter<T>::value>; };
+};
 
 /// Get the index of the given type within a list, or -1 if type is not found
 template<typename List, typename T>
@@ -192,6 +234,19 @@ using first = at<List, 0>;
 template<typename List>
 using last = at<List, length<List>()-1>;
 
+/// Transformer for use on lists-of-lists, which selects the Nth element from each sublist
+/// i.e. transform<list<list<0, 1>, list<2, 3>, list<4, 5>>, select_element<1>::transformer> yields list<1, 3, 5>
+template<std::size_t SelectIndex>
+struct select_element {
+   template<typename T>
+   struct transformer { using type = at<T, SelectIndex>; };
+};
+
+/// Add indexes to types in the list, i.e. index<list<A, B, C>> == list<list<0, A>, list<1, B>, list<2, C>> where
+/// 0, 1, and 2 are std::integral_constants of type std::size_t
+template<typename List>
+using index = typename impl::zip<typename impl::make_sequence<length<List>()>::type, List>::type;
+
 /// Get the list with the element at the given index removed
 template<typename List, std::size_t index>
 using remove_at = typename impl::remove_at<list<>, List, index>::type;
@@ -210,6 +265,17 @@ struct invert_filter {
    template<typename T>
    struct type { constexpr static bool value = !Filter<T>::value; };
 };
+/// Template to modify a filter to apply to an indexed list
+template<template<typename> class Filter>
+struct indexed_filter {
+   template<typename T>
+   struct type { constexpr static bool value = Filter<last<T>>::value; };
+};
+
+/// Template to create an index map from a filter such that at<map, filtered_index> == unfiltered_index
+template<typename List, template<typename> class Filter>
+using filter_index_map = transform<filter<index<List>, indexed_filter<Filter>::template type>,
+                                   select_element<0>::transformer>;
 
 /// Take the sublist at indexes [start, end)
 template<typename List, std::size_t start, std::size_t end = length<List>()>
@@ -218,11 +284,6 @@ using slice = typename impl::slice<list<>, List, start, end>::type;
 /// Zip two equal-length typelists together, i.e. zip<list<X, Y>, list<A, B>> == list<list<X, A>, list<Y, B>>
 template<typename ListA, typename ListB>
 using zip = typename impl::zip<ListA, ListB>::type;
-
-/// Add indexes to types in the list, i.e. index<list<A, B, C>> == list<list<0, A>, list<1, B>, list<2, C>> where
-/// 0, 1, and 2 are std::integral_constants of type std::size_t
-template<typename List>
-using index = typename impl::zip<typename impl::make_sequence<length<List>()>::type, List>::type;
 
 /// This namespace contains some utilities that provide runtime operations on typelists
 namespace runtime {
@@ -257,6 +318,13 @@ template<typename... Types, typename Callable>
 void for_each(list<Types...>, Callable c) {
    bool trues[] = { [](Callable& c, auto t) { c(t); return true; }(c, wrapper<Types>())... };
    (void)(trues);
+}
+
+/// @brief Convert a typelist to an array
+/// @note All types in list must be default-constructible and convertible to Value
+template<typename Value, typename... Types>
+std::array<Value, length<list<Types...>>()> make_array(list<Types...>) {
+   return {Types()...};
 }
 
 } } } // namespace fc::typelist::runtime
