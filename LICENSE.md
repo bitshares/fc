@@ -50,3 +50,5 @@ vendor/editline is copyright Simmule Turner and Rich Salz and covered by a BSD-l
 vendor/secp256k1-zkp is copyright Pieter Wuille and covered by the MIT/X11 license. See vendor/secp256k1-zkp/COPYING.
 
 vendor/websocketpp is copyright Peter Thorson and covered by a 3-clause BSD-license. It also includes code from 4th-party authors with various copyrights, see vendor/websocketpp/COPYING.
+
+.github/workflows/build-and-test-macos.yml: the code in the step "Use XCode 12.2 for Big Sur" was taken from https://github.com/d12frosted/homebrew-emacs-plus/commit/315f55c7a36ba13e533a8a9bb7111b489398e86a , under the MIT License, Copyright (c) 2016-2020 Boris Buliga. See licenses/LICENSE-MIT.d12frosted.txt .
