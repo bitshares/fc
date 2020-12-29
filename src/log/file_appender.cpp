@@ -1,11 +1,13 @@
 #include <fc/exception/exception.hpp>
-#include <fc/io/fstream.hpp>
 #include <fc/log/file_appender.hpp>
 #include <fc/reflect/variant.hpp>
 #include <fc/thread/scoped_lock.hpp>
 #include <fc/thread/thread.hpp>
 #include <fc/variant.hpp>
+
 #include <boost/thread/mutex.hpp>
+
+#include <fstream>
 #include <iomanip>
 #include <queue>
 #include <sstream>
@@ -17,7 +19,7 @@ namespace fc {
    {
       public:
          config                     cfg;
-         ofstream                   out;
+         std::ofstream              out;
          boost::mutex               slock;
 
       private:
@@ -41,7 +43,9 @@ namespace fc {
                   rotate_files( true );
                   delete_files();
                } else {
-                  out.open( cfg.filename, std::ios_base::out | std::ios_base::app);
+                  out.open( cfg.filename.string(), std::ios_base::app );
+                  FC_ASSERT( !out.fail() && !out.bad(), "Failed to open file '${f}'",
+                             ("f",cfg.filename.string()) );
                }
             }
             catch( ... )
@@ -92,7 +96,9 @@ namespace fc {
                    out.close();
                }
                remove_all(link_filename);  // on windows, you can't delete the link while the underlying file is opened for writing
-               out.open( log_filename, std::ios_base::out | std::ios_base::app );
+               out.open( log_filename.string(), std::ios_base::app );
+               if( out.fail() || out.bad() )
+                  std::cerr << "Failed to open log file '" << cfg.filename.string() << "'\n";
                create_hard_link(log_filename, link_filename);
              }
          }

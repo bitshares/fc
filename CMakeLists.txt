@@ -180,7 +180,6 @@ set( fc_sources
      src/io/iostream.cpp
      src/io/datastream.cpp
      src/io/buffered_iostream.cpp
-     src/io/fstream.cpp
      src/io/sstream.cpp
      src/io/json.cpp
      src/io/varint.cpp

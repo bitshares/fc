@@ -2,6 +2,8 @@
 #include <fc/variant.hpp>
 #include <fc/filesystem.hpp>
 
+#include <iostream>
+
 #define DEFAULT_MAX_RECURSION_DEPTH 200
 
 namespace fc
@@ -33,12 +35,18 @@ namespace fc
             legacy_generator = 1
          };
 
-         static ostream& to_stream( ostream& out, const std::string& );
-         static ostream& to_stream( ostream& out, const variant& v, output_formatting format = stringify_large_ints_and_doubles, uint32_t max_depth = DEFAULT_MAX_RECURSION_DEPTH );
-         static ostream& to_stream( ostream& out, const variants& v, output_formatting format = stringify_large_ints_and_doubles, uint32_t max_depth = DEFAULT_MAX_RECURSION_DEPTH );
-         static ostream& to_stream( ostream& out, const variant_object& v, output_formatting format = stringify_large_ints_and_doubles, uint32_t max_depth = DEFAULT_MAX_RECURSION_DEPTH );
+         static std::ostream& to_stream( std::ostream& out, const std::string& );
+         static std::ostream& to_stream( std::ostream& out, const variant& v,
+                                         output_formatting format = stringify_large_ints_and_doubles,
+                                         uint32_t max_depth = DEFAULT_MAX_RECURSION_DEPTH );
+         static std::ostream& to_stream( std::ostream& out, const variants& v,
+                                         output_formatting format = stringify_large_ints_and_doubles,
+                                         uint32_t max_depth = DEFAULT_MAX_RECURSION_DEPTH );
+         static std::ostream& to_stream( std::ostream& out, const variant_object& v,
+                                         output_formatting format = stringify_large_ints_and_doubles,
+                                         uint32_t max_depth = DEFAULT_MAX_RECURSION_DEPTH );
 
-         static variant  from_stream( buffered_istream& in, parse_type ptype = legacy_parser, uint32_t max_depth = DEFAULT_MAX_RECURSION_DEPTH );
+         static variant  from_stream( std::istream& in, parse_type ptype = legacy_parser, uint32_t max_depth = DEFAULT_MAX_RECURSION_DEPTH );
 
          static variant  from_string( const string& utf8_str, parse_type ptype = legacy_parser, uint32_t max_depth = DEFAULT_MAX_RECURSION_DEPTH );
          static variants variants_from_string( const string& utf8_str, parse_type ptype = legacy_parser, uint32_t max_depth = DEFAULT_MAX_RECURSION_DEPTH );

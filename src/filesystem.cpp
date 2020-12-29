@@ -2,13 +2,14 @@
 #include <fc/filesystem.hpp>
 #include <fc/exception/exception.hpp>
 #include <fc/fwd_impl.hpp>
-#include <fc/io/fstream.hpp>
 
 #include <fc/utf8.hpp>
 #include <fc/variant.hpp>
 
 #include <boost/config.hpp>
 #include <boost/filesystem.hpp>
+
+#include <fstream>
 
 #ifdef _WIN32
 # include <windows.h>
@@ -370,7 +371,8 @@ namespace fc {
       }
       if (create)
       {
-         fc::ofstream ofs(*_path, std::ios_base::out | std::ios_base::binary);
+         std::ofstream ofs( _path->string(), std::ios_base::binary);
+         FC_ASSERT( !ofs.fail() && !ofs.bad(), "Failed to open file '${f}'", ("f",_path->string()) );
          ofs.close();
       }
    }

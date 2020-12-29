@@ -5,10 +5,7 @@
 
 #include <fc/exception/exception.hpp>
 #include <fc/io/buffered_iostream.hpp>
-#include <fc/io/fstream.hpp>
-#include <fc/io/iostream.hpp>
 #include <fc/io/json.hpp>
-#include <fc/io/sstream.hpp>
 
 #include <fstream>
 
@@ -40,17 +37,15 @@ static void test_fail_stream( const std::string& str )
       init.close();
    }
    try {
-      fc::istream_ptr in( new fc::ifstream( file.path() ) );
-      fc::buffered_istream bin( in );
-      fc::json::from_stream( bin );
+      std::ifstream in( file.path().string() );
+      fc::json::from_stream( in );
       BOOST_FAIL( "json::from_stream('" + str + "') failed using ifstream" );
    } catch( const fc::parse_error_exception& ) { // ignore, ok
    } catch( const fc::eof_exception& ) { // ignore, ok
    } FC_CAPTURE_LOG_AND_RETHROW( ("json::from_stream failed using ifstream")(str) )
    try {
-      fc::istream_ptr in( new fc::stringstream( str ) );
-      fc::buffered_istream bin( in );
-      fc::json::from_stream( bin );
+      std::stringstream in( str );
+      fc::json::from_stream( in );
       BOOST_FAIL( "json::from_stream('" + str + "') failed using stringstream" );
    } catch( const fc::parse_error_exception& ) { // ignore, ok
    } catch( const fc::eof_exception& ) { // ignore, ok

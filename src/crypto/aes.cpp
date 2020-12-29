@@ -3,8 +3,6 @@
 #include <fc/exception/exception.hpp>
 #include <fc/fwd_impl.hpp>
 
-#include <fc/io/fstream.hpp>
-
 #include <fc/log/logger.hpp>
 
 #include <fc/thread/thread.hpp>
@@ -16,6 +14,9 @@
 # error "OpenSSL must be configured to support threads"
 #endif
 #include <openssl/crypto.h>
+
+#include <fstream>
+#include <ios>
 
 #if defined(_WIN32)
 # include <windows.h>
@@ -358,7 +359,8 @@ void              aes_save( const fc::path& file, const fc::sha512& key, std::ve
    fc::raw::pack( check_enc, cipher );
    auto check = check_enc.result();
 
-   fc::ofstream out(file);
+   std::ofstream out( file.string(), std::ios_base::binary );
+   FC_ASSERT( !out.fail() && !out.bad(), "Failed to open file '${f}'", ("f",file.string()) );
    fc::raw::pack( out, check );
    fc::raw::pack( out, cipher );
 } FC_RETHROW_EXCEPTIONS( warn, "", ("file",file) ) }
@@ -370,7 +372,8 @@ std::vector<char> aes_load( const fc::path& file, const fc::sha512& key )
 { try {
    FC_ASSERT( fc::exists( file ) );
 
-   fc::ifstream in( file, fc::ifstream::binary );
+   std::ifstream in( file.string(), std::ios_base::binary );
+   FC_ASSERT( !in.fail() && !in.bad(), "Failed to open file '${f}'", ("f",file.string()) );
    fc::sha512 check;
    std::vector<char> cipher;
 

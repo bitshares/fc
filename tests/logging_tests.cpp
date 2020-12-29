@@ -11,11 +11,21 @@
 #include <fc/variant.hpp>
 #include <fc/time.hpp>
 #include <fc/io/json.hpp>
-#include <fc/io/fstream.hpp>
 
-#include <thread>
-#include <iostream>
 #include <fstream>
+#include <thread>
+
+namespace fc { namespace test {
+
+static std::string read_file_contents( const fc::path& filename )
+{
+   std::ifstream f( filename.string() );
+   std::stringstream ss;
+   ss << f.rdbuf();
+   return ss.str();
+}
+
+} } // fc::test
 
 BOOST_AUTO_TEST_SUITE(logging_tests)
 
@@ -52,12 +62,11 @@ BOOST_AUTO_TEST_CASE(log_reboot)
 
         if (prev_log_filename != log_filename) {
             if (i > conf.rotation_interval.to_seconds()) {
-                std::string rez;
-                fc::read_file_contents(prev_log_filename, rez);
+                std::string rez = fc::test::read_file_contents( prev_log_filename );
                 std::size_t found = rez.find("my_file.cpp:" + std::to_string(i - 1));
                 BOOST_CHECK(found != std::string::npos);
 
-                fc::read_file_contents(log_filename, rez);
+                rez = fc::test::read_file_contents( log_filename );
                 found = rez.find("my_file.cpp:" + std::to_string(i));
                 BOOST_CHECK(found != std::string::npos);
             }
