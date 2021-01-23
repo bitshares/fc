@@ -4,6 +4,9 @@
 MESSAGE(STATUS "Using custom FindBoost config")
 
 find_package(Boost 1.58 REQUIRED COMPONENTS ${Boost_FIND_COMPONENTS})
+IF("${Boost_VERSION}" GREATER_EQUAL 107000 )
+    MESSAGE(FATAL_ERROR "Boost version ${Boost_VERSION} must be at least 1.58 and at most 1.69 .")
+ENDIF()
 
 #  Inject `pthread` dependency to Boost if needed
 if (UNIX AND NOT CYGWIN)
