@@ -44,43 +44,51 @@ namespace fc {
     }
   }
 
-  size_t udp_socket::send_to( const char* buffer, size_t length, const ip::endpoint& to ) 
+  void udp_socket::send_to( const char* buffer, size_t length, const ip::endpoint& to )
   {
     try 
     {
-      return my->_sock.send_to( boost::asio::buffer(buffer, length), to_asio_ep(to) );
+       my->_sock.send_to( boost::asio::buffer(buffer, length), to_asio_ep(to) );
     } 
     catch( const boost::system::system_error& e ) 
     {
-      if( e.code() != boost::asio::error::would_block )
-        throw;
+       if(e.code() == boost::asio::error::would_block)
+       {
+          auto send_buffer_ptr = std::make_shared<std::vector<char>>(buffer, buffer+length);
+          my->_sock.async_send_to(boost::asio::buffer(send_buffer_ptr.get(), length), to_asio_ep(to),
+                                  [send_buffer_ptr]( const boost::system::error_code& /*ec*/,
+                                                     std::size_t /*bytes_transferred*/ )
+          {
+            // Swallow errors.  Currently only used for GELF logging, so depend on local
+            // log to catch anything that doesn't make it across the network.
+          });
+       }
+       // All other exceptions ignored.
     }
-
-    promise<size_t>::ptr completion_promise = promise<size_t>::create("udp_socket::send_to");
-    my->_sock.async_send_to( boost::asio::buffer(buffer, length), to_asio_ep(to), 
-                             asio::detail::read_write_handler(completion_promise) );
-
-    return completion_promise->wait();
   }
 
-  size_t udp_socket::send_to( const std::shared_ptr<const char>& buffer, size_t length, 
+  void udp_socket::send_to( const std::shared_ptr<const char>& buffer, size_t length,
                               const fc::ip::endpoint& to )
   {
     try 
     {
-      return my->_sock.send_to( boost::asio::buffer(buffer.get(), length), to_asio_ep(to) );
+       my->_sock.send_to( boost::asio::buffer(buffer.get(), length), to_asio_ep(to) );
     } 
     catch( const boost::system::system_error& e ) 
     {
-      if( e.code() != boost::asio::error::would_block )
-        throw;
+       if(e.code() == boost::asio::error::would_block)
+       {
+          auto preserved_buffer_ptr = buffer;
+          my->_sock.async_send_to(boost::asio::buffer(preserved_buffer_ptr.get(), length), to_asio_ep(to),
+                                  [preserved_buffer_ptr](const boost::system::error_code& /*ec*/,
+                                                         std::size_t /*bytes_transferred*/)
+          {
+            // Swallow errors.  Currently only used for GELF logging, so depend on local
+            // log to catch anything that doesn't make it across the network.
+          });
+       }
+       // All other exceptions ignored.
     }
-
-    promise<size_t>::ptr completion_promise = promise<size_t>::create("udp_socket::send_to");
-    my->_sock.async_send_to( boost::asio::buffer(buffer.get(), length), to_asio_ep(to), 
-                             asio::detail::read_write_handler_with_buffer(completion_promise, buffer) );
-
-    return completion_promise->wait();
   }
 
   void udp_socket::open() {

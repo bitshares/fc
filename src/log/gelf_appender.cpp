@@ -11,8 +11,12 @@
 #include <fc/compress/zlib.hpp>
 
 #include <boost/lexical_cast.hpp>
+#include <boost/thread/mutex.hpp>
+
+#include <atomic>
 #include <iomanip>
 #include <iostream>
+#include <mutex>
 #include <queue>
 #include <sstream>
 #include <iostream>
@@ -26,9 +30,11 @@ namespace fc
     config                     cfg;
     optional<ip::endpoint>     gelf_endpoint;
     udp_socket                 gelf_socket;
+    std::atomic<uint64_t>      gelf_log_counter;
+    boost::mutex               gelf_log_mutex;
 
     impl(const config& c) : 
-      cfg(c)
+      cfg(c), gelf_log_counter(0)
     {
     }
 
@@ -96,7 +102,11 @@ namespace fc
     gelf_message["host"] = my->cfg.host;
     gelf_message["short_message"] = format_string( message.get_format(), message.get_data(), my->cfg.max_object_depth );
     
-    gelf_message["timestamp"] = context.get_timestamp().time_since_epoch().count() / 1000000.;
+    const auto time_ns = context.get_timestamp().time_since_epoch().count();
+    gelf_message["timestamp"] = time_ns / 1000000.;
+    gelf_message["_timestamp_ns"] = time_ns;
+
+    gelf_message["_log_id"] = fc::to_string(++my->gelf_log_counter);
 
     switch (context.get_log_level())
     {
@@ -131,7 +141,7 @@ namespace fc
     string gelf_message_as_string;
     try
     {
-       gelf_message_as_string = json::to_string(gelf_message);
+       gelf_message_as_string = json::to_string(gelf_message, json::legacy_generator);
     }
     catch( const fc::assert_exception& e )
     {
@@ -148,6 +158,8 @@ namespace fc
         gelf_message_as_string[1] == (char)0xda)
       gelf_message_as_string[1] = (char)0x9c;
     assert(gelf_message_as_string[1] == (char)0x9c);
+
+    std::unique_lock<boost::mutex> lock(my->gelf_log_mutex);
 
     // packets are sent by UDP, and they tend to disappear if they
     // get too large.  It's hard to find any solid numbers on how
