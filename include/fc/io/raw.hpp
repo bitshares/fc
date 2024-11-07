@@ -339,8 +339,9 @@ namespace fc {
       };
 
       template<typename Stream, typename Class>
-      struct unpack_object_visitor {
-        unpack_object_visitor( Class& _c, Stream& _s, uint32_t _max_depth ) : c(_c),s(_s),max_depth(_max_depth - 1)
+      struct unpack_object_visitor : fc::reflector_verifier_visitor<Class> {
+        unpack_object_visitor( Class& _c, Stream& _s, uint32_t _max_depth )
+           : fc::reflector_verifier_visitor<Class>(_c), s(_s), max_depth(_max_depth - 1)
         {
            FC_ASSERT( _max_depth > 0 );
         }
@@ -348,10 +349,10 @@ namespace fc {
         template<typename T, typename C, T(C::*p)>
         inline void operator()( const char* name )const
         { try {
-           fc::raw::unpack( s, c.*p, max_depth );
+           fc::raw::unpack( s, this->obj.*p, max_depth );
         } FC_RETHROW_EXCEPTIONS( warn, "Error unpacking field ${field}", ("field",name) ) }
+
         private:
-          Class&  c;
           Stream& s;
           const uint32_t max_depth;
       };

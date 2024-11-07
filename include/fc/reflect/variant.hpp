@@ -42,11 +42,11 @@ namespace fc
    };
 
    template<typename T>
-   class from_variant_visitor
+   class from_variant_visitor : reflector_verifier_visitor<T>
    {
       public:
          from_variant_visitor( const variant_object& _vo, T& v, uint32_t max_depth )
-         :vo(_vo),val(v),_max_depth(max_depth - 1) {
+         : reflector_verifier_visitor<T>(v), vo(_vo), _max_depth(max_depth - 1) {
             _FC_ASSERT( max_depth > 0, "Recursion depth exceeded!" );
          }
 
@@ -55,11 +55,10 @@ namespace fc
          {
             auto itr = vo.find(name);
             if( itr != vo.end() )
-               from_variant( itr->value(), val.*member, _max_depth );
+               from_variant( itr->value(), this->obj.*member, _max_depth );
          }
 
          const variant_object& vo;
-         T& val;
          const uint32_t _max_depth;
    };
 
