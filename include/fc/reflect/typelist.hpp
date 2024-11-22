@@ -128,6 +128,20 @@ struct zip<list<A, As...>, list<B, Bs...>> {
    using type = typename concat<list<list<A, B>>, typename zip<list<As...>, list<Bs...>>::type>::type;
 };
 
+template<typename, template<typename> class> struct any;
+template<template<typename> class Predicate>
+struct any<list<>, Predicate> {
+   constexpr static bool value = false;
+};
+template<typename T, template<typename> class Predicate>
+struct any<list<T>, Predicate> {
+   constexpr static bool value = Predicate<T>::value;
+};
+template<typename T1, typename T2, typename... Ts, template<typename> class Predicate>
+struct any<list<T1, T2, Ts...>, Predicate> {
+   constexpr static bool value = Predicate<T1>::value || any<list<T2, Ts...>, Predicate>::value;
+};
+
 template<typename Callable, typename Ret, typename T>
 Ret dispatch_helper(Callable& c) { return c(T()); }
 
@@ -223,6 +237,17 @@ using zip = typename impl::zip<ListA, ListB>::type;
 /// 0, 1, and 2 are std::integral_constants of type std::size_t
 template<typename List>
 using index = typename impl::zip<typename impl::make_sequence<length<List>()>::type, List>::type;
+
+/// Determine whether any type in list passes predicate
+template<typename List, template<typename> class Predicate>
+constexpr static bool any = impl::any<List, Predicate>::value;
+
+/// A wrapper which wraps an uninstantiated template in a type so it can be handled in a typelist
+template<template<typename...> class Template>
+struct wrapped {
+   template<typename... Ts>
+   using unwrap = Template<Ts...>;
+};
 
 /// This namespace contains some utilities that provide runtime operations on typelists
 namespace runtime {
