@@ -18,7 +18,7 @@
   #include <sys/types.h>
   #include <sys/stat.h>
   #include <pwd.h>
-# ifdef FC_HAS_SIMPLE_FILE_LOCK  
+# ifdef FC_HAS_SIMPLE_FILE_LOCK
   #include <sys/file.h>
   #include <fcntl.h>
 # endif
@@ -124,7 +124,7 @@ namespace fc {
     const size_t maxPath = 32*1024;
     std::vector<wchar_t> short_path;
     short_path.resize(maxPath + 1);
-          
+
     wchar_t* buffer = short_path.data();
     DWORD res = GetShortPathNameW(path.c_str(), buffer, maxPath);
     if(res != 0)
@@ -136,7 +136,7 @@ namespace fc {
     }
 
    /**
-    *  @todo use iterators instead of indexes for 
+    *  @todo use iterators instead of indexes for
     *  faster performance
     */
    std::string path::windows_string()const {
@@ -205,11 +205,11 @@ namespace fc {
         return *r._p != *l._p;
       }
 
-      
+
   bool exists( const path& p ) { return boost::filesystem::exists(p); }
-  void create_directories( const path& p ) { 
+  void create_directories( const path& p ) {
     try {
-      boost::filesystem::create_directories(p); 
+      boost::filesystem::create_directories(p);
     } catch ( ... ) {
       FC_THROW( "Unable to create directories ${path}", ("path", p )("inner", fc::except_str() ) );
     }
@@ -238,7 +238,7 @@ namespace fc {
   }
 
   void remove_all( const path& p ) { boost::filesystem::remove_all(p); }
-  void copy( const path& f, const path& t ) { 
+  void copy( const path& f, const path& t ) {
      try {
          boost::system::error_code ec;
          boost::filesystem::copy( boost::filesystem::path(f), boost::filesystem::path(t), ec );
@@ -255,17 +255,17 @@ namespace fc {
 	         ("srcfile",f)("dstfile",t)("inner", fc::except_str() ) );
      }
   }
-  void resize_file( const path& f, size_t t ) 
-  { 
+  void resize_file( const path& f, size_t t )
+  {
     try {
       boost::filesystem::resize_file( f, t );
-    } 
+    }
     catch ( boost::system::system_error& e )
     {
       FC_THROW( "Resize file '${f}' to size ${s} failed: ${reason}",
                 ("f",f)("s",t)( "reason", std::string(e.what()) ) );
-    } 
-    catch ( ... ) 
+    }
+    catch ( ... )
     {
       FC_THROW( "Resize file '${f}' to size ${s} failed: ${reason}",
                 ("f",f)("s",t)( "reason", fc::except_str() ) );
@@ -278,15 +278,15 @@ namespace fc {
   void chmod( const path& p, int perm )
   {
 #ifndef WIN32
-    mode_t actual_perm = 
+    mode_t actual_perm =
       ((perm & 0400) ? S_IRUSR : 0)
     | ((perm & 0200) ? S_IWUSR : 0)
     | ((perm & 0100) ? S_IXUSR : 0)
-    
+
     | ((perm & 0040) ? S_IRGRP : 0)
     | ((perm & 0020) ? S_IWGRP : 0)
     | ((perm & 0010) ? S_IXGRP : 0)
-    
+
     | ((perm & 0004) ? S_IROTH : 0)
     | ((perm & 0002) ? S_IWOTH : 0)
     | ((perm & 0001) ? S_IXOTH : 0)
@@ -299,9 +299,9 @@ namespace fc {
     return;
   }
 
-  void rename( const path& f, const path& t ) { 
+  void rename( const path& f, const path& t ) {
      try {
-  	    boost::filesystem::rename( boost::filesystem::path(f), boost::filesystem::path(t) ); 
+  	    boost::filesystem::rename( boost::filesystem::path(f), boost::filesystem::path(t) );
      } catch ( boost::system::system_error& er ) {
          try {
             copy( f, t );
@@ -316,24 +316,24 @@ namespace fc {
 	         ("srcfile",f)("dstfile",t)("inner", fc::except_str() ) );
      }
   }
-  void create_hard_link( const path& f, const path& t ) { 
+  void create_hard_link( const path& f, const path& t ) {
      try {
-        boost::filesystem::create_hard_link( f, t ); 
+        boost::filesystem::create_hard_link( f, t );
      } catch ( ... ) {
-         FC_THROW( "Unable to create hard link from '${from}' to '${to}'", 
+         FC_THROW( "Unable to create hard link from '${from}' to '${to}'",
                           ( "from", f )("to",t)("exception", fc::except_str() ) );
      }
   }
-  bool remove( const path& f ) { 
+  bool remove( const path& f ) {
      try {
-        return boost::filesystem::remove( f ); 
+        return boost::filesystem::remove( f );
      } catch ( ... ) {
          FC_THROW( "Unable to remove '${path}'", ( "path", f )("exception", fc::except_str() ) );
      }
   }
-  fc::path canonical( const fc::path& p ) { 
+  fc::path canonical( const fc::path& p ) {
      try {
-        return boost::filesystem::canonical(p); 
+        return boost::filesystem::canonical(p);
      } catch ( ... ) {
          FC_THROW( "Unable to resolve path '${path}'", ( "path", p )("exception", fc::except_str() ) );
      }
@@ -362,7 +362,7 @@ namespace fc {
   }
 
    temp_file::temp_file(const fc::path& p, bool create)
-   : temp_file_base(p / fc::unique_path())
+   : temp_file_base(path_t(p / fc::unique_path()))
    {
       if (fc::exists(*_path))
       {
@@ -391,7 +391,7 @@ namespace fc {
    }
 
    temp_directory::temp_directory(const fc::path& p)
-   : temp_file_base(p / fc::unique_path())
+   : temp_file_base(path_t(p / fc::unique_path()))
    {
       if (fc::exists(*_path))
       {
@@ -480,7 +480,7 @@ namespace fc {
    const fc::path& app_path()
    {
 #ifdef __APPLE__
-         static fc::path appdir = [](){  return home_path() / "Library" / "Application Support"; }();  
+         static fc::path appdir = [](){  return home_path() / "Library" / "Application Support"; }();
 #elif defined( WIN32 )
          static fc::path appdir = [](){
            wchar_t app_data_dir[MAX_PATH];

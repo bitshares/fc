@@ -18,7 +18,7 @@ namespace fc
            std::getline( ss, _proto, ':' );
            std::getline( ss, skip, '/' );
            std::getline( ss, skip, '/' );
-           
+
            if( s.find('@') != size_t(std::string::npos) ) {
              std::string user_pass;
              std::getline( ss, user_pass, '@' );
@@ -59,13 +59,13 @@ namespace fc
            _path = fc::path( "/" ) / _lpath;
 #endif
            std::getline( ss, _largs );
-           if( _args.valid() && _args->size() ) 
+           if( _args.valid() && _args->size() )
            {
              // TODO: args = std::move(_args);
            }
          }
 
-         string                    _proto; 
+         string                    _proto;
          ostring                   _host;
          ostring                   _user;
          ostring                   _pass;
@@ -81,7 +81,7 @@ namespace fc
   }
   void from_variant( const fc::variant& v, url& u, uint32_t max_depth )
   {
-    u  = url( v.as_string() ); 
+    u  = url( v.as_string() );
   }
 
   url::operator string()const
@@ -110,7 +110,7 @@ namespace fc
   std::shared_ptr<detail::url_impl> get_null_url()
   {
     static auto u = std::make_shared<detail::url_impl>();
-    return u; 
+    return u;
   }
 
   url::url()
@@ -163,31 +163,31 @@ namespace fc
      return *this;
   }
 
-  string                    url::proto()const
+  const string&                    url::proto()const
   {
     return my->_proto;
-  } 
-  ostring                   url::host()const
+  }
+  const ostring&                   url::host()const
   {
     return my->_host;
   }
-  ostring                   url::user()const
+  const ostring&                   url::user()const
   {
     return my->_user;
   }
-  ostring                   url::pass()const
+  const ostring&                   url::pass()const
   {
     return my->_pass;
   }
-  opath                     url::path()const
+  const opath&                     url::path()const
   {
     return my->_path;
   }
-  ovariant_object           url::args()const
+  const ovariant_object&           url::args()const
   {
     return my->_args;
   }
-  fc::optional<uint16_t>    url::port()const
+  const fc::optional<uint16_t>&    url::port()const
   {
     return my->_port;
   }

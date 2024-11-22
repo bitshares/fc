@@ -14,12 +14,12 @@ namespace fc {
   namespace detail { class url_impl; }
 
   class mutable_url;
-  
+
   /**
    *  Used to pass an immutable URL and
    *  query its parts.
    */
-  class url 
+  class url
   {
     public:
       url();
@@ -29,25 +29,25 @@ namespace fc {
       url( mutable_url&& c );
       url( const mutable_url& c );
       ~url();
-      
+
       url& operator=( const url& c );
       url& operator=( url&& c );
 
       url& operator=( const mutable_url& c );
       url& operator=( mutable_url&& c );
-      
+
       bool operator==( const url& cmp )const;
-      
+
       operator string()const;
-      
+
       //// file, ssh, tcp, http, ssl, etc...
-      string                    proto()const; 
-      ostring                   host()const;
-      ostring                   user()const;
-      ostring                   pass()const;
-      opath                     path()const;
-      ovariant_object           args()const;
-      fc::optional<uint16_t>    port()const;
+      const string&                    proto()const;
+      const ostring&                   host()const;
+      const ostring&                   user()const;
+      const ostring&                   pass()const;
+      const opath&                     path()const;
+      const ovariant_object&           args()const;
+      const fc::optional<uint16_t>&    port()const;
 
     private:
       friend class mutable_url;
@@ -69,25 +69,25 @@ namespace fc {
       mutable_url( const url& c );
       mutable_url( mutable_url&& c );
       ~mutable_url();
-      
+
       mutable_url& operator=( const url& c );
       mutable_url& operator=( const mutable_url& c );
       mutable_url& operator=( mutable_url&& c );
-      
+
       bool operator==( const mutable_url& cmp )const;
       bool operator==( const url& cmp )const;
-      
+
       operator string()const;
-      
+
       //// file, ssh, tcp, http, ssl, etc...
-      string                    proto()const; 
-      ostring                   host()const;
-      ostring                   user()const;
-      ostring                   pass()const;
-      opath                     path()const;
-      ovariant_object           args()const;
-      fc::optional<uint16_t>    port()const;
-      
+      const string&                    proto()const;
+      const ostring&                   host()const;
+      const ostring&                   user()const;
+      const ostring&                   pass()const;
+      const opath&                     path()const;
+      const ovariant_object&           args()const;
+      const fc::optional<uint16_t>&    port()const;
+
       void set_proto( string        );
       void set_host( string         );
       void set_user( string         );

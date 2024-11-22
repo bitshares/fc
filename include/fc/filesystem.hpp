@@ -85,9 +85,9 @@ namespace fc {
 
     private:
     #ifdef _WIN64
-      fwd<boost::filesystem::path,40> _p; 
+      fwd<boost::filesystem::path,40> _p;
     #else
-      fwd<boost::filesystem::path,32> _p; 
+      fwd<boost::filesystem::path,32> _p;
     #endif
   };
 
@@ -123,7 +123,7 @@ namespace fc {
       friend bool operator==( const directory_iterator&, const directory_iterator& );
       friend bool operator!=( const directory_iterator&, const directory_iterator& );
     private:
-      fwd<boost::filesystem::directory_iterator,16> _p; 
+      fwd<boost::filesystem::directory_iterator,16> _p;
   };
   class recursive_directory_iterator {
     public:
@@ -141,7 +141,7 @@ namespace fc {
       friend bool operator==( const recursive_directory_iterator&, const recursive_directory_iterator& );
       friend bool operator!=( const recursive_directory_iterator&, const recursive_directory_iterator& );
     private:
-      fwd<boost::filesystem::recursive_directory_iterator,16> _p; 
+      fwd<boost::filesystem::recursive_directory_iterator,16> _p;
   };
 
   bool     exists( const path& p );
@@ -158,7 +158,7 @@ namespace fc {
   void     copy( const path& from, const path& to );
   void     rename( const path& from, const path& to );
   void     resize_file( const path& file, size_t s );
-  
+
   // setuid, setgid not implemented.
   // translates octal permission like 0755 to S_ stuff defined in sys/stat.h
   // no-op on Windows.
@@ -172,7 +172,7 @@ namespace fc {
   /** @return the home directory on Linux and OS X and the Profile directory on Windows */
   const path& home_path();
 
-  /** @return the home_path() on Linux, home_path()/Library/Application Support/ on OS X, 
+  /** @return the home_path() on Linux, home_path()/Library/Application Support/ on OS X,
    *  and APPDATA on windows
    */
   const path& app_path();

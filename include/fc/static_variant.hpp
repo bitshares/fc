@@ -338,7 +338,7 @@ public:
 };
 template<typename... Types> class static_variant<typelist::list<Types...>> : public static_variant<Types...> {};
 
-   struct from_static_variant 
+   struct from_static_variant
    {
       variant& var;
       const uint32_t _max_depth;

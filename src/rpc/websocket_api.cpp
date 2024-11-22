@@ -116,7 +116,7 @@ void websocket_api_connection::send_notice(
    if( !_connection ) // defensive check
       return;
 
-   fc::rpc::request req{ optional<uint64_t>(), "notice", { callback_id, std::move(args) } };
+   fc::rpc::request req{ ovariant(), "notice", { callback_id, std::move(args) } };
    _connection->send_message( fc::json::to_string( fc::variant( req, _max_conversion_depth ),
                                                    fc::json::stringify_large_ints_and_doubles,
                                                    _max_conversion_depth ) );
@@ -124,6 +124,8 @@ void websocket_api_connection::send_notice(
 
 response websocket_api_connection::on_message( const std::string& message )
 {
+   static const ovariant null_id { variant() };
+   static const optional<string> v2 { string("2.0") };
    variant var;
    try
    {
@@ -131,34 +133,35 @@ response websocket_api_connection::on_message( const std::string& message )
    }
    catch( const fc::exception& e )
    {
-      return response( variant(), { -32700, "Invalid JSON message", variant( e, _max_conversion_depth ) }, "2.0" );
+      return response( null_id, error_object{ -32700, "Invalid JSON message",
+                                              ovariant( variant( e, _max_conversion_depth ) ) }, v2 );
    }
 
    if( var.is_array() )
-      return response( variant(), { -32600, "Batch requests not supported" }, "2.0" );
+      return response( null_id, error_object{ -32600, "Batch requests not supported" }, v2 );
 
    if( !var.is_object() )
-      return response( variant(), { -32600, "Invalid JSON request" }, "2.0" );
+      return response( null_id, error_object{ -32600, "Invalid JSON request" }, v2 );
 
    variant_object var_obj = var.get_object();
 
    if( var_obj.contains( "id" )
        && !var_obj["id"].is_string() && !var_obj["id"].is_numeric() && !var_obj["id"].is_null() )
-      return response( variant(), { -32600, "Invalid id" }, "2.0" );
+      return response( null_id, error_object{ -32600, "Invalid id" }, v2 );
 
    if( var_obj.contains( "method" ) && ( !var_obj["method"].is_string() || var_obj["method"].get_string() == "" ) )
-      return response( variant(), { -32600, "Missing or invalid method" }, "2.0" );
+      return response( null_id, error_object{ -32600, "Missing or invalid method" }, v2 );
 
    if( var_obj.contains( "jsonrpc" ) && ( !var_obj["jsonrpc"].is_string() || var_obj["jsonrpc"] != "2.0" ) )
-      return response( variant(), { -32600, "Unsupported JSON-RPC version" }, "2.0" );
+      return response( null_id, error_object{ -32600, "Unsupported JSON-RPC version" }, v2 );
 
    if( var_obj.contains( "method" ) )
    {
       if( var_obj.contains( "params" ) && var_obj["params"].is_object() )
-         return response( variant(), { -32602, "Named parameters not supported" }, "2.0" );
+         return response( null_id, error_object{ -32602, "Named parameters not supported" }, v2 );
 
       if( var_obj.contains( "params" ) && !var_obj["params"].is_array() )
-         return response( variant(), { -32600, "Invalid parameters" }, "2.0" );
+         return response( null_id, error_object{ -32600, "Invalid parameters" }, v2 );
 
       return on_request( std::move( var ) );
    }
@@ -166,14 +169,14 @@ response websocket_api_connection::on_message( const std::string& message )
    if( var_obj.contains( "result" ) || var_obj.contains("error") )
    {
       if( !var_obj.contains( "id" ) || ( var_obj["id"].is_null() && !var_obj.contains( "jsonrpc" ) ) )
-         return response( variant(), { -32600, "Missing or invalid id" }, "2.0" );
+         return response( null_id, error_object{ -32600, "Missing or invalid id" }, v2 );
 
       on_response( std::move( var ) );
 
       return response();
    }
 
-   return response( variant(), { -32600, "Missing method or result or error" }, "2.0" );
+   return response( null_id, error_object{ -32600, "Missing method or result or error" }, v2 );
 }
 
 void websocket_api_connection::on_response( const variant& var )
@@ -216,19 +219,21 @@ response websocket_api_connection::on_request( const variant& var )
    {
       if( has_id )
          return response( call.id, error_object{ -32601, "Method not found",
-                          variant( (fc::exception) e, _max_conversion_depth ) }, call.jsonrpc );
+                                                 ovariant( variant( (fc::exception) e, _max_conversion_depth ) ) },
+                          call.jsonrpc );
    }
    catch ( const fc::exception& e )
    {
       if( has_id )
          return response( call.id, error_object{ e.code(), "Execution error: " + e.to_string(),
-                                                 variant( e, _max_conversion_depth ) },
+                                                 ovariant( variant( e, _max_conversion_depth ) ) },
                           call.jsonrpc );
    }
    catch ( const std::exception& e )
    {
       elog( "Internal error - ${e}", ("e",e.what()) );
-      return response( call.id, error_object{ -32603, "Internal error", variant( e.what(), _max_conversion_depth ) },
+      return response( call.id, error_object{ -32603, "Internal error",
+                                              ovariant( variant( e.what(), _max_conversion_depth ) ) },
                        call.jsonrpc );
    }
    catch ( ... )

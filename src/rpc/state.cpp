@@ -32,7 +32,7 @@ void  state::handle_reply( const response& response )
    FC_ASSERT( response.id, "Response without ID: ${response}", ("response",response) );
    auto await = _awaiting.find( *response.id );
    FC_ASSERT( await != _awaiting.end(), "Unknown Response ID: ${id}", ("id",response.id)("response",response) );
-   if( response.result ) 
+   if( response.result )
       await->second->set_value( *response.result );
    else if( response.error )
    {
@@ -45,7 +45,7 @@ void  state::handle_reply( const response& response )
 
 request state::start_remote_call( const string& method_name, variants args )
 {
-   request request{ _next_id++, method_name, std::move(args) };
+   request request{ ovariant(variant(_next_id++)), method_name, std::move(args) };
    _awaiting[*request.id] = fc::promise<variant>::create("json_connection::async_call");
    return request;
 }

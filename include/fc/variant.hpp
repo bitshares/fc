@@ -1,4 +1,4 @@
-#pragma once 
+#pragma once
 
 #include <array>
 #include <cstddef>
@@ -36,10 +36,10 @@ namespace fc
     * @defgroup serializable Serializable _types
     * @brief Classes that may be converted to/from an variant
     *
-    * To make a class 'serializable' the following methods must be available 
+    * To make a class 'serializable' the following methods must be available
     * for your Serializable_type
     *
-    *  @code 
+    *  @code
     *     void   to_variant( const Serializable_type& e, variant& v, uint32_t max_depth );
     *     void   from_variant( const variant& e, Serializable_type& ll, uint32_t max_depth );
     *  @endcode
@@ -188,7 +188,7 @@ namespace fc
 
    /**
     * @brief stores null, int64, uint64, double, bool, string, std::vector<variant>,
-    *        and variant_object's.  
+    *        and variant_object's.
     *
     * variant's allocate everything but strings, arrays, and objects on the
     * stack and are 'move aware' for values allocated on the heap.
@@ -200,9 +200,9 @@ namespace fc
       public:
         enum type_id
         {
-           null_type   = 0,     
-           int64_type  = 1, 
-           uint64_type = 2, 
+           null_type   = 0,
+           int64_type  = 1,
+           uint64_type = 2,
            double_type = 3,
            bool_type   = 4,
            string_type = 5,
@@ -248,7 +248,7 @@ namespace fc
         /**
          *  Read-only access to the content of the variant.
          */
-        class visitor 
+        class visitor
         {
            public:
               virtual ~visitor(){}
@@ -284,7 +284,7 @@ namespace fc
          *   int64, uint64, bool
          */
         bool                        is_integer()const;
-                                    
+
         int64_t                     as_int64()const;
         uint64_t                    as_uint64()const;
         bool                        as_bool()const;
@@ -295,23 +295,23 @@ namespace fc
         blob                        as_blob()const;
 
         /** Convert's double, ints, bools, etc to a string
-         * @throw if get_type() == array_type | get_type() == object_type 
+         * @throw if get_type() == array_type | get_type() == object_type
          */
         std::string                 as_string()const;
 
         /// @pre  get_type() == string_type
         const std::string&          get_string()const;
-                                    
+
         /// @throw if get_type() != array_type | null_type
         variants&                   get_array();
 
-        /// @throw if get_type() != array_type 
+        /// @throw if get_type() != array_type
         const variants&             get_array()const;
 
         /// @throw if get_type() != object_type | null_type
         variant_object&             get_object();
 
-        /// @throw if get_type() != object_type 
+        /// @throw if get_type() != object_type
         const variant_object&       get_object()const;
 
         /// @pre is_object()
@@ -329,7 +329,7 @@ namespace fc
          *  void from_variant( const Variant& var, T& val, uint32_t max_depth )
          *  </code>
          *
-         *  The above form is not always convienant, so the this templated 
+         *  The above form is not always convienant, so the this templated
          *  method is used to enable conversion from Variants to other
          *  types.
          */
@@ -375,7 +375,7 @@ namespace fc
         char    _type[sizeof(void*)]; ///< pad to void* size
    };
    typedef optional<variant> ovariant;
-  
+
    /** @ingroup Serializable */
    void from_variant( const variant& var,  std::string& vo, uint32_t max_depth = 1 );
    /** @ingroup Serializable */
