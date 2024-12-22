@@ -3,6 +3,8 @@
 #include <fc/optional.hpp>
 #include <string>
 
+#include <cstdint> // for uint64_t etc
+
 namespace fc
 {
     using std::string;
